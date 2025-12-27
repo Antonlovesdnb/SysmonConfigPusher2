@@ -1,16 +1,74 @@
+using System.Collections.Concurrent;
 using System.Management;
 using Microsoft.Extensions.Logging;
 using SysmonConfigPusher.Core.Interfaces;
 
 namespace SysmonConfigPusher.Infrastructure.Wmi;
 
-public class WmiRemoteExecutionService : IRemoteExecutionService
+public class WmiRemoteExecutionService : IRemoteExecutionService, IDisposable
 {
     private readonly ILogger<WmiRemoteExecutionService> _logger;
+    private readonly ConcurrentDictionary<string, CachedScope> _scopeCache = new();
+    private readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(5);
+    private readonly Timer _cleanupTimer;
+    private bool _disposed;
+
+    private class CachedScope
+    {
+        public ManagementScope Scope { get; }
+        public DateTime LastUsed { get; set; }
+
+        public CachedScope(ManagementScope scope)
+        {
+            Scope = scope;
+            LastUsed = DateTime.UtcNow;
+        }
+    }
 
     public WmiRemoteExecutionService(ILogger<WmiRemoteExecutionService> logger)
     {
         _logger = logger;
+        _cleanupTimer = new Timer(CleanupExpiredScopes, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    private void CleanupExpiredScopes(object? state)
+    {
+        var expired = _scopeCache
+            .Where(kvp => DateTime.UtcNow - kvp.Value.LastUsed > _cacheExpiry)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in expired)
+        {
+            if (_scopeCache.TryRemove(key, out _))
+            {
+                _logger.LogDebug("Removed expired WMI scope for {Key}", key);
+            }
+        }
+    }
+
+    private ManagementScope GetOrCreateScope(string hostname, string path)
+    {
+        var cacheKey = $"{hostname}|{path}";
+
+        if (_scopeCache.TryGetValue(cacheKey, out var cached))
+        {
+            if (cached.Scope.IsConnected)
+            {
+                cached.LastUsed = DateTime.UtcNow;
+                return cached.Scope;
+            }
+            // Scope is disconnected, remove from cache
+            _scopeCache.TryRemove(cacheKey, out _);
+        }
+
+        var scope = CreateManagementScope(hostname, path);
+        scope.Connect();
+
+        _scopeCache[cacheKey] = new CachedScope(scope);
+        _logger.LogDebug("Created and cached WMI scope for {Hostname} at {Path}", hostname, path);
+
+        return scope;
     }
 
     public async Task<RemoteExecutionResult> ExecuteCommandAsync(
@@ -24,8 +82,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
             {
                 _logger.LogDebug("Executing command on {Hostname}: {Command}", hostname, command);
 
-                var scope = CreateManagementScope(hostname, @"root\cimv2");
-                scope.Connect();
+                var scope = GetOrCreateScope(hostname, @"root\cimv2");
 
                 using var processClass = new ManagementClass(scope, new ManagementPath("Win32_Process"), null);
                 var inParams = processClass.GetMethodParameters("Create");
@@ -65,8 +122,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
             {
                 _logger.LogDebug("Testing WMI connectivity to {Hostname}", hostname);
 
-                var scope = CreateManagementScope(hostname, @"root\cimv2");
-                scope.Connect();
+                var scope = GetOrCreateScope(hostname, @"root\cimv2");
 
                 // Query the operating system to verify connectivity
                 using var searcher = new ManagementObjectSearcher(scope,
@@ -94,8 +150,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
         {
             try
             {
-                var scope = CreateManagementScope(hostname, @"root\cimv2");
-                scope.Connect();
+                var scope = GetOrCreateScope(hostname, @"root\cimv2");
 
                 // Query for Sysmon service
                 using var searcher = new ManagementObjectSearcher(scope,
@@ -135,13 +190,9 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
         {
             try
             {
-                var scope = CreateManagementScope(hostname, @"root\cimv2");
-                scope.Connect();
-
                 // Query the Sysmon registry for config hash
                 // Sysmon stores config info in HKLM\SYSTEM\CurrentControlSet\Services\SysmonDrv\Parameters
-                var regScope = CreateManagementScope(hostname, @"root\default");
-                regScope.Connect();
+                var regScope = GetOrCreateScope(hostname, @"root\default");
 
                 using var registry = new ManagementClass(regScope, new ManagementPath("StdRegProv"), null);
 
@@ -175,8 +226,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
         {
             try
             {
-                var scope = CreateManagementScope(hostname, @"root\cimv2");
-                scope.Connect();
+                var scope = GetOrCreateScope(hostname, @"root\cimv2");
 
                 // Query for Sysmon or Sysmon64 service
                 using var searcher = new ManagementObjectSearcher(scope,
@@ -273,5 +323,16 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
             21 => "Invalid parameter",
             _ => $"Unknown error ({returnValue})"
         };
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _cleanupTimer.Dispose();
+        _scopeCache.Clear();
+
+        GC.SuppressFinalize(this);
     }
 }
