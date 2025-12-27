@@ -28,6 +28,10 @@ builder.Services.AddScoped<IFileTransferService, SmbFileTransferService>();
 builder.Services.AddSingleton<IDeploymentQueue, DeploymentQueue>();
 builder.Services.AddHostedService<DeploymentWorker>();
 
+// Inventory scan queue and worker
+builder.Services.AddSingleton<IInventoryScanQueue, InventoryScanQueue>();
+builder.Services.AddHostedService<InventoryScanWorker>();
+
 // Configure SQLite
 var dataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
@@ -68,7 +72,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // Vite dev server
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5175") // Vite dev server
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

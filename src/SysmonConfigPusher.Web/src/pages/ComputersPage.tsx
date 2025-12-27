@@ -8,6 +8,7 @@ export function ComputersPage() {
   const [computers, setComputers] = useState<Computer[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -40,6 +41,19 @@ export function ComputersPage() {
       setError(err instanceof Error ? err.message : 'Failed to refresh from AD');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const scanInventory = async () => {
+    setScanning(true);
+    try {
+      const result = await computersApi.scanAll();
+      setError(null);
+      alert(result.message + '\n\nRefresh the page after a few moments to see updated Sysmon info.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start inventory scan');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -94,6 +108,13 @@ export function ComputersPage() {
               className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
             >
               {refreshing ? 'Refreshing...' : 'Refresh from AD'}
+            </button>
+            <button
+              onClick={scanInventory}
+              disabled={scanning}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {scanning ? 'Scanning...' : 'Scan Inventory'}
             </button>
           </div>
         </div>
@@ -151,10 +172,10 @@ export function ComputersPage() {
                     Operating System
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Sysmon Version
+                    Sysmon Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Deployment
+                    Last Scan
                   </th>
                 </tr>
               </thead>
@@ -182,12 +203,22 @@ export function ComputersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {computer.operatingSystem || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {computer.sysmonVersion || '-'}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {computer.sysmonPath ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {computer.sysmonVersion || 'Installed'}
+                        </span>
+                      ) : computer.lastInventoryScan ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          Not installed
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Not scanned</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {computer.lastDeployment
-                        ? new Date(computer.lastDeployment).toLocaleString()
+                      {computer.lastInventoryScan
+                        ? new Date(computer.lastInventoryScan).toLocaleString()
                         : '-'}
                     </td>
                   </tr>

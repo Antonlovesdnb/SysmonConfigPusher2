@@ -70,6 +70,22 @@ export const computersApi = {
     if (!response.ok) throw new Error(`Failed to create group: ${response.status}`);
     return response.json();
   },
+
+  async scan(computerIds?: number[]): Promise<{ message: string }> {
+    const response = await fetchWithAuth('/api/computers/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ computerIds }),
+    });
+    if (!response.ok) throw new Error(`Failed to start scan: ${response.status}`);
+    return response.json();
+  },
+
+  async scanAll(): Promise<{ message: string }> {
+    const response = await fetchWithAuth('/api/computers/scan/all', { method: 'POST' });
+    if (!response.ok) throw new Error(`Failed to start scan: ${response.status}`);
+    return response.json();
+  },
 };
 
 // Configs API

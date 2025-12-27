@@ -14,15 +14,18 @@ public class ComputersController : ControllerBase
 {
     private readonly SysmonDbContext _db;
     private readonly IActiveDirectoryService _adService;
+    private readonly IInventoryScanQueue _scanQueue;
     private readonly ILogger<ComputersController> _logger;
 
     public ComputersController(
         SysmonDbContext db,
         IActiveDirectoryService adService,
+        IInventoryScanQueue scanQueue,
         ILogger<ComputersController> logger)
     {
         _db = db;
         _adService = adService;
+        _scanQueue = scanQueue;
         _logger = logger;
     }
 
@@ -52,8 +55,10 @@ public class ComputersController : ControllerBase
                 c.OperatingSystem,
                 c.LastSeen,
                 c.SysmonVersion,
+                c.SysmonPath,
                 c.ConfigHash,
-                c.LastDeployment))
+                c.LastDeployment,
+                c.LastInventoryScan))
             .ToListAsync();
 
         return Ok(computers);
@@ -73,8 +78,10 @@ public class ComputersController : ControllerBase
             computer.OperatingSystem,
             computer.LastSeen,
             computer.SysmonVersion,
+            computer.SysmonPath,
             computer.ConfigHash,
-            computer.LastDeployment));
+            computer.LastDeployment,
+            computer.LastInventoryScan));
     }
 
     [HttpPost("refresh")]
@@ -158,6 +165,30 @@ public class ComputersController : ControllerBase
         return Ok(results);
     }
 
+    [HttpPost("scan")]
+    public ActionResult<ScanResultDto> ScanComputers([FromBody] ScanRequest request)
+    {
+        _logger.LogInformation("User {User} requested inventory scan for {Count} computers",
+            User.Identity?.Name, request.ComputerIds?.Length ?? -1);
+
+        if (request.ComputerIds == null || request.ComputerIds.Length == 0)
+        {
+            _scanQueue.EnqueueAll();
+            return Accepted(new ScanResultDto("Scan queued for all computers"));
+        }
+
+        _scanQueue.Enqueue(request.ComputerIds);
+        return Accepted(new ScanResultDto($"Scan queued for {request.ComputerIds.Length} computers"));
+    }
+
+    [HttpPost("scan/all")]
+    public ActionResult<ScanResultDto> ScanAllComputers()
+    {
+        _logger.LogInformation("User {User} requested full inventory scan", User.Identity?.Name);
+        _scanQueue.EnqueueAll();
+        return Accepted(new ScanResultDto("Scan queued for all computers"));
+    }
+
     [HttpGet("groups")]
     public async Task<ActionResult<IEnumerable<ComputerGroupDto>>> GetGroups()
     {
@@ -209,8 +240,10 @@ public record ComputerDto(
     string? OperatingSystem,
     DateTime? LastSeen,
     string? SysmonVersion,
+    string? SysmonPath,
     string? ConfigHash,
-    DateTime? LastDeployment);
+    DateTime? LastDeployment,
+    DateTime? LastInventoryScan);
 
 public record ComputerGroupDto(
     int Id,
@@ -224,3 +257,7 @@ public record CreateGroupRequest(string Name, int[]? ComputerIds);
 public record RefreshResultDto(int Added, int Updated, string Message);
 
 public record ConnectivityResultDto(int ComputerId, bool Reachable, string? Message);
+
+public record ScanRequest(int[]? ComputerIds);
+
+public record ScanResultDto(string Message);

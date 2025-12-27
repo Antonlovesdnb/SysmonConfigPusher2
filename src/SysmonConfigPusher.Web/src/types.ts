@@ -7,8 +7,10 @@ export interface Computer {
   operatingSystem: string | null;
   lastSeen: string | null;
   sysmonVersion: string | null;
+  sysmonPath: string | null;
   configHash: string | null;
   lastDeployment: string | null;
+  lastInventoryScan: string | null;
 }
 
 export interface ComputerGroup {

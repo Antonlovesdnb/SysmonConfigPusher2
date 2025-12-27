@@ -117,7 +117,7 @@ public class DeploymentWorker : BackgroundService
                 {
                     (success, message) = await ExecuteOperationAsync(
                         job.Operation,
-                        result.Computer.Hostname,
+                        result.Computer,
                         job.Config,
                         remoteExec,
                         fileTransfer,
@@ -173,7 +173,7 @@ public class DeploymentWorker : BackgroundService
 
     private async Task<(bool Success, string? Message)> ExecuteOperationAsync(
         string operation,
-        string hostname,
+        Computer computer,
         Config? config,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
@@ -181,10 +181,10 @@ public class DeploymentWorker : BackgroundService
     {
         return operation.ToLowerInvariant() switch
         {
-            "install" => await InstallSysmonAsync(hostname, config, remoteExec, fileTransfer, cancellationToken),
-            "update" or "pushconfig" => await UpdateConfigAsync(hostname, config, remoteExec, fileTransfer, cancellationToken),
-            "uninstall" => await UninstallSysmonAsync(hostname, remoteExec, cancellationToken),
-            "test" => await TestConnectivityAsync(hostname, remoteExec, cancellationToken),
+            "install" => await InstallSysmonAsync(computer.Hostname, config, remoteExec, fileTransfer, cancellationToken),
+            "update" or "pushconfig" => await UpdateConfigAsync(computer, config, remoteExec, fileTransfer, cancellationToken),
+            "uninstall" => await UninstallSysmonAsync(computer, remoteExec, cancellationToken),
+            "test" => await TestConnectivityAsync(computer.Hostname, remoteExec, cancellationToken),
             _ => (false, $"Unknown operation: {operation}")
         };
     }
@@ -240,7 +240,7 @@ public class DeploymentWorker : BackgroundService
     }
 
     private async Task<(bool, string?)> UpdateConfigAsync(
-        string hostname,
+        Computer computer,
         Config? config,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
@@ -249,8 +249,12 @@ public class DeploymentWorker : BackgroundService
         if (config == null)
             return (false, "No config specified");
 
-        // 1. Auto-detect Sysmon location
-        var sysmonPath = await remoteExec.GetSysmonPathAsync(hostname, cancellationToken);
+        // 1. Use cached Sysmon path if available, otherwise auto-detect
+        var sysmonPath = computer.SysmonPath;
+        if (string.IsNullOrEmpty(sysmonPath))
+        {
+            sysmonPath = await remoteExec.GetSysmonPathAsync(computer.Hostname, cancellationToken);
+        }
         if (string.IsNullOrEmpty(sysmonPath))
             return (false, "Sysmon is not installed on this host");
 
@@ -262,13 +266,13 @@ public class DeploymentWorker : BackgroundService
         var smbConfigPath = configFilePath.Substring(3); // Remove "C:\"
 
         var configResult = await fileTransfer.WriteFileAsync(
-            hostname, config.Content, smbConfigPath, cancellationToken);
+            computer.Hostname, config.Content, smbConfigPath, cancellationToken);
         if (!configResult.Success)
             return (false, $"Failed to write config: {configResult.ErrorMessage}");
 
         // 3. Update Sysmon config using detected path
         var updateCmd = $"\"{sysmonPath}\" -c \"{configFilePath}\"";
-        var execResult = await remoteExec.ExecuteCommandAsync(hostname, updateCmd, cancellationToken);
+        var execResult = await remoteExec.ExecuteCommandAsync(computer.Hostname, updateCmd, cancellationToken);
         if (!execResult.Success)
             return (false, $"Failed to update config: {execResult.ErrorMessage}");
 
@@ -276,17 +280,21 @@ public class DeploymentWorker : BackgroundService
     }
 
     private async Task<(bool, string?)> UninstallSysmonAsync(
-        string hostname,
+        Computer computer,
         IRemoteExecutionService remoteExec,
         CancellationToken cancellationToken)
     {
-        // Auto-detect Sysmon location
-        var sysmonPath = await remoteExec.GetSysmonPathAsync(hostname, cancellationToken);
+        // Use cached Sysmon path if available, otherwise auto-detect
+        var sysmonPath = computer.SysmonPath;
+        if (string.IsNullOrEmpty(sysmonPath))
+        {
+            sysmonPath = await remoteExec.GetSysmonPathAsync(computer.Hostname, cancellationToken);
+        }
         if (string.IsNullOrEmpty(sysmonPath))
             return (false, "Sysmon is not installed on this host");
 
         var uninstallCmd = $"\"{sysmonPath}\" -u force";
-        var execResult = await remoteExec.ExecuteCommandAsync(hostname, uninstallCmd, cancellationToken);
+        var execResult = await remoteExec.ExecuteCommandAsync(computer.Hostname, uninstallCmd, cancellationToken);
 
         if (!execResult.Success)
             return (false, $"Failed to uninstall Sysmon: {execResult.ErrorMessage}");

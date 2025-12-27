@@ -19,7 +19,9 @@
       "Bash(npm run build:*)",
       "Bash(taskkill:*)",
       "Bash(powershell:*)",
-      "Bash(cmd /c \"taskkill /F /PID 2944\")"
+      "Bash(cmd /c \"taskkill /F /PID 2944\")",
+      "Bash(cat:*)",
+      "Bash(git tag:*)"
     ]
   }
 }
