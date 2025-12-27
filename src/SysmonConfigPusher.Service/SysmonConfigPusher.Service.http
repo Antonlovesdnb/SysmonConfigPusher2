@@ -1,0 +1,6 @@
+@SysmonConfigPusher.Service_HostAddress = http://localhost:5128
+
+GET {{SysmonConfigPusher.Service_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
