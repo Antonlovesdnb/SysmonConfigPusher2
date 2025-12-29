@@ -298,4 +298,32 @@ export const settingsApi = {
     if (!response.ok) throw new Error(`Failed to update settings: ${response.status}`);
     return response.json();
   },
+
+  async getBinaryCacheStatus(): Promise<BinaryCacheStatus> {
+    const response = await fetchWithAuth('/api/settings/binary-cache');
+    if (!response.ok) throw new Error(`Failed to get binary cache status: ${response.status}`);
+    return response.json();
+  },
+
+  async updateBinaryCache(): Promise<BinaryCacheUpdateResult> {
+    const response = await fetchWithAuth('/api/settings/binary-cache/update', { method: 'POST' });
+    if (!response.ok) throw new Error(`Failed to update binary cache: ${response.status}`);
+    return response.json();
+  },
 };
+
+export interface BinaryCacheStatus {
+  isCached: boolean;
+  filePath: string | null;
+  version: string | null;
+  fileSizeBytes: number | null;
+  cachedAt: string | null;
+}
+
+export interface BinaryCacheUpdateResult {
+  success: boolean;
+  message: string;
+  version: string | null;
+  fileSizeBytes: number | null;
+  cachedAt: string | null;
+}

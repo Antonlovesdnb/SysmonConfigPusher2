@@ -9,6 +9,7 @@ using SysmonConfigPusher.Infrastructure.Wmi;
 using SysmonConfigPusher.Infrastructure.Smb;
 using SysmonConfigPusher.Infrastructure.EventLog;
 using SysmonConfigPusher.Infrastructure.NoiseAnalysis;
+using SysmonConfigPusher.Infrastructure.BinaryCache;
 using SysmonConfigPusher.Service.Authorization;
 using SysmonConfigPusher.Service.BackgroundServices;
 using SysmonConfigPusher.Service.Services;
@@ -46,6 +47,13 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 // Authorization settings
 builder.Services.Configure<AuthorizationSettings>(
     builder.Configuration.GetSection(AuthorizationSettings.SectionName));
+
+// SysmonConfigPusher settings
+builder.Services.Configure<SysmonConfigPusherSettings>(
+    builder.Configuration.GetSection(SysmonConfigPusherSettings.SectionName));
+
+// Sysmon binary cache service
+builder.Services.AddHttpClient<ISysmonBinaryCacheService, SysmonBinaryCacheService>();
 
 // Configure SQLite
 var dataPath = Path.Combine(

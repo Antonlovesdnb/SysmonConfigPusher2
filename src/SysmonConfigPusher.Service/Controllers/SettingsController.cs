@@ -13,15 +13,18 @@ public class SettingsController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
     private readonly IAuditService _auditService;
+    private readonly ISysmonBinaryCacheService _binaryCacheService;
     private readonly ILogger<SettingsController> _logger;
 
     public SettingsController(
         IWebHostEnvironment env,
         IAuditService auditService,
+        ISysmonBinaryCacheService binaryCacheService,
         ILogger<SettingsController> logger)
     {
         _env = env;
         _auditService = auditService;
+        _binaryCacheService = binaryCacheService;
         _logger = logger;
     }
 
@@ -137,6 +140,53 @@ public class SettingsController : ControllerBase
             return StatusCode(500, new { message = "Failed to save settings: " + ex.Message });
         }
     }
+
+    /// <summary>
+    /// Get Sysmon binary cache status.
+    /// </summary>
+    [HttpGet("binary-cache")]
+    [Authorize(Policy = "RequireViewer")]
+    public ActionResult<BinaryCacheStatusDto> GetBinaryCacheStatus()
+    {
+        var cacheInfo = _binaryCacheService.GetCacheInfo();
+
+        return Ok(new BinaryCacheStatusDto
+        {
+            IsCached = _binaryCacheService.IsCached,
+            FilePath = _binaryCacheService.CachePath,
+            Version = cacheInfo?.Version,
+            FileSizeBytes = cacheInfo?.FileSizeBytes,
+            CachedAt = cacheInfo?.CachedAt
+        });
+    }
+
+    /// <summary>
+    /// Download/update the Sysmon binary cache.
+    /// </summary>
+    [HttpPost("binary-cache/update")]
+    public async Task<ActionResult<BinaryCacheUpdateResultDto>> UpdateBinaryCache(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("User {User} initiated Sysmon binary cache update", User.Identity?.Name);
+
+        var result = await _binaryCacheService.UpdateCacheAsync(cancellationToken);
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.BinaryCacheUpdate, new
+        {
+            Success = result.Success,
+            Message = result.Message,
+            Version = result.CacheInfo?.Version,
+            FileSizeBytes = result.CacheInfo?.FileSizeBytes
+        });
+
+        return Ok(new BinaryCacheUpdateResultDto
+        {
+            Success = result.Success,
+            Message = result.Message ?? (result.Success ? "Binary cached successfully" : "Failed to cache binary"),
+            Version = result.CacheInfo?.Version,
+            FileSizeBytes = result.CacheInfo?.FileSizeBytes,
+            CachedAt = result.CacheInfo?.CachedAt
+        });
+    }
 }
 
 // DTOs
@@ -166,4 +216,22 @@ public class UpdateSettingsResultDto
     public bool Success { get; set; }
     public string Message { get; set; } = "";
     public bool RestartRequired { get; set; }
+}
+
+public class BinaryCacheStatusDto
+{
+    public bool IsCached { get; set; }
+    public string? FilePath { get; set; }
+    public string? Version { get; set; }
+    public long? FileSizeBytes { get; set; }
+    public DateTime? CachedAt { get; set; }
+}
+
+public class BinaryCacheUpdateResultDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
+    public string? Version { get; set; }
+    public long? FileSizeBytes { get; set; }
+    public DateTime? CachedAt { get; set; }
 }

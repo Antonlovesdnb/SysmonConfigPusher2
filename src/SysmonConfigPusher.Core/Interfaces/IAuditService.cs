@@ -44,5 +44,6 @@ public enum AuditAction
     AuthorizationDenied,
 
     // Settings operations
-    SettingsUpdate
+    SettingsUpdate,
+    BinaryCacheUpdate
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { settingsApi } from '../api';
+import { settingsApi, type BinaryCacheStatus } from '../api';
 import type { AppSettings } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,8 +11,14 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Binary cache state
+  const [binaryCache, setBinaryCache] = useState<BinaryCacheStatus | null>(null);
+  const [downloadingBinary, setDownloadingBinary] = useState(false);
+  const [binaryCacheMessage, setBinaryCacheMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     loadSettings();
+    loadBinaryCacheStatus();
   }, []);
 
   const loadSettings = async () => {
@@ -25,6 +31,33 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBinaryCacheStatus = async () => {
+    try {
+      const status = await settingsApi.getBinaryCacheStatus();
+      setBinaryCache(status);
+    } catch (err) {
+      console.error('Failed to load binary cache status:', err);
+    }
+  };
+
+  const downloadBinary = async () => {
+    setDownloadingBinary(true);
+    setBinaryCacheMessage(null);
+    try {
+      const result = await settingsApi.updateBinaryCache();
+      if (result.success) {
+        setBinaryCacheMessage({ type: 'success', text: result.message });
+        await loadBinaryCacheStatus();
+      } else {
+        setBinaryCacheMessage({ type: 'error', text: result.message });
+      }
+    } catch (err) {
+      setBinaryCacheMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to download binary' });
+    } finally {
+      setDownloadingBinary(false);
     }
   };
 
@@ -350,6 +383,106 @@ export function SettingsPage() {
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Target directory on remote hosts for Sysmon files
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Binary Cache Section */}
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Sysmon Binary Cache
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Download and cache the Sysmon executable for deployments.
+          </p>
+
+          {binaryCacheMessage && (
+            <div className={`mb-4 p-4 rounded-lg ${
+              binaryCacheMessage.type === 'success'
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+            }`}>
+              {binaryCacheMessage.text}
+            </div>
+          )}
+
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    binaryCache?.isCached
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  }`}>
+                    {binaryCache?.isCached ? 'Cached' : 'Not Cached'}
+                  </span>
+                  {binaryCache?.version && (
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      v{binaryCache.version}
+                    </span>
+                  )}
+                </div>
+                {binaryCache?.isCached && binaryCache.cachedAt && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Downloaded: {new Date(binaryCache.cachedAt).toLocaleString()}
+                    {binaryCache.fileSizeBytes && (
+                      <> ({(binaryCache.fileSizeBytes / 1024 / 1024).toFixed(2)} MB)</>
+                    )}
+                  </p>
+                )}
+                {!binaryCache?.isCached && (
+                  <p className="text-xs text-yellow-600 dark:text-yellow-500">
+                    Sysmon binary must be downloaded before deployments can run.
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={downloadBinary}
+                disabled={downloadingBinary}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {downloadingBinary ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    {binaryCache?.isCached ? 'Update Binary' : 'Download Binary'}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
