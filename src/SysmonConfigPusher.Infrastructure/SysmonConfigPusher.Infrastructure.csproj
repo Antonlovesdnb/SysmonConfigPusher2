@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SysmonConfigPusher.Core\SysmonConfigPusher.Core.csproj" />
+    <ProjectReference Include="..\SysmonConfigPusher.Data\SysmonConfigPusher.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

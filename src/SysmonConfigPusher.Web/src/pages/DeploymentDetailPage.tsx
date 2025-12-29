@@ -106,18 +106,18 @@ export function DeploymentDetailPage() {
 
   if (loading && !job) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="text-center py-8 text-gray-500">Loading...</div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
   }
 
   if (error && !job) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
         <div className="mt-4">
-          <Link to="/deployments" className="text-slate-600 hover:text-slate-800">
+          <Link to="/deployments" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300">
             Back to Deployments
           </Link>
         </div>
@@ -137,11 +137,11 @@ export function DeploymentDetailPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-gray-800">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
                 Deployment #{job.id}
               </h2>
               <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusBadge(job.status)}`}>
@@ -153,10 +153,10 @@ export function DeploymentDetailPage() {
                 </span>
               )}
             </div>
-            <div className="mt-2 text-gray-600">
+            <div className="mt-2 text-gray-600 dark:text-gray-400">
               {getOperationLabel(job.operation)}
               {job.configFilename && (
-                <span className="ml-2 text-gray-500">using {job.configFilename}</span>
+                <span className="ml-2 text-gray-500 dark:text-gray-400">using {job.configFilename}</span>
               )}
             </div>
           </div>
@@ -173,13 +173,13 @@ export function DeploymentDetailPage() {
             <button
               onClick={fetchJob}
               disabled={loading}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
             >
               Refresh
             </button>
             <Link
               to="/deployments"
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               Back
             </Link>
@@ -188,14 +188,14 @@ export function DeploymentDetailPage() {
 
         {/* Progress bar */}
         <div className="mt-4">
-          <div className="flex justify-between text-sm text-gray-500 mb-1">
+          <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1">
             <span>Progress</span>
             <span>
               {completedCount} / {totalCount}
-              {failureCount > 0 && <span className="text-red-500 ml-1">({failureCount} failed)</span>}
+              {failureCount > 0 && <span className="text-red-500 dark:text-red-400 ml-1">({failureCount} failed)</span>}
             </span>
           </div>
-          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
             <div className="h-full flex">
               <div
                 className="bg-green-500 transition-all"
@@ -211,26 +211,26 @@ export function DeploymentDetailPage() {
 
         {/* Summary stats */}
         <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="text-2xl font-semibold text-gray-900">{totalCount}</div>
-            <div className="text-sm text-gray-500">Total</div>
+          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{totalCount}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
           </div>
-          <div className="p-3 bg-green-50 rounded-lg">
-            <div className="text-2xl font-semibold text-green-600">{successCount}</div>
-            <div className="text-sm text-gray-500">Success</div>
+          <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+            <div className="text-2xl font-semibold text-green-600 dark:text-green-400">{successCount}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Success</div>
           </div>
-          <div className="p-3 bg-red-50 rounded-lg">
-            <div className="text-2xl font-semibold text-red-600">{failureCount}</div>
-            <div className="text-sm text-gray-500">Failed</div>
+          <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg">
+            <div className="text-2xl font-semibold text-red-600 dark:text-red-400">{failureCount}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Failed</div>
           </div>
-          <div className="p-3 bg-slate-50 rounded-lg">
-            <div className="text-2xl font-semibold text-slate-600">{pendingCount}</div>
-            <div className="text-sm text-gray-500">Pending</div>
+          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <div className="text-2xl font-semibold text-slate-600 dark:text-slate-300">{pendingCount}</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">Pending</div>
           </div>
         </div>
 
         {/* Metadata */}
-        <div className="mt-4 pt-4 border-t text-sm text-gray-500 flex gap-6">
+        <div className="mt-4 pt-4 border-t dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400 flex gap-6">
           <div>
             <span className="font-medium">Started by:</span> {job.startedBy || 'Unknown'}
           </div>
@@ -248,27 +248,27 @@ export function DeploymentDetailPage() {
       </div>
 
       {/* Results table */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Results</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Results</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Hostname
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Message
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Completed At
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {results.map((result) => {
                 const isPending = !result.completedAt || result.message === 'Pending';
                 const isRunning = progress.some(
@@ -276,8 +276,8 @@ export function DeploymentDetailPage() {
                 );
 
                 return (
-                  <tr key={result.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={result.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                       {result.hostname}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -301,10 +301,10 @@ export function DeploymentDetailPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {result.message || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {result.completedAt && result.message !== 'Pending'
                         ? new Date(result.completedAt).toLocaleString()
                         : '-'}

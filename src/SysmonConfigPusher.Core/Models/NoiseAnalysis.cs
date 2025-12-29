@@ -5,7 +5,7 @@ public class NoiseAnalysisRun
     public int Id { get; set; }
     public int ComputerId { get; set; }
     public Computer Computer { get; set; } = null!;
-    public int TimeRangeHours { get; set; }
+    public double TimeRangeHours { get; set; }
     public int TotalEvents { get; set; }
     public DateTime AnalyzedAt { get; set; } = DateTime.UtcNow;
 

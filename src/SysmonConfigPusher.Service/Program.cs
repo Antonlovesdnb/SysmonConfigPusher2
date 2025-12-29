@@ -5,6 +5,8 @@ using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Infrastructure.ActiveDirectory;
 using SysmonConfigPusher.Infrastructure.Wmi;
 using SysmonConfigPusher.Infrastructure.Smb;
+using SysmonConfigPusher.Infrastructure.EventLog;
+using SysmonConfigPusher.Infrastructure.NoiseAnalysis;
 using SysmonConfigPusher.Service.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
 builder.Services.AddScoped<IRemoteExecutionService, WmiRemoteExecutionService>();
 builder.Services.AddScoped<IFileTransferService, SmbFileTransferService>();
+builder.Services.AddScoped<IEventLogService, WmiEventLogService>();
+builder.Services.AddScoped<INoiseAnalysisService, NoiseAnalysisService>();
 
 // Deployment queue and worker
 builder.Services.AddSingleton<IDeploymentQueue, DeploymentQueue>();

@@ -84,21 +84,21 @@ export function ComputersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-800">Inventory</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Inventory</h2>
           <div className="flex gap-2">
             <input
               type="text"
               placeholder="Search hostname..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
             <button
               onClick={fetchComputers}
               disabled={loading}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
             >
               Search
             </button>
@@ -120,18 +120,18 @@ export function ComputersPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>
+          <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
         )}
 
         {selectedIds.size > 0 && (
-          <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
-            <span className="text-slate-800">
+          <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between">
+            <span className="text-slate-800 dark:text-slate-200">
               {selectedIds.size} computer{selectedIds.size !== 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="px-3 py-1 text-slate-600 hover:text-slate-800"
+                className="px-3 py-1 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               >
                 Clear Selection
               </button>
@@ -146,45 +146,45 @@ export function ComputersPage() {
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">Loading...</div>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
         ) : computers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             No computers found. Click "Refresh from AD" to enumerate computers from Active
             Directory.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
                       checked={selectedIds.size === computers.length && computers.length > 0}
                       onChange={selectAll}
-                      className="w-4 h-4 rounded border-gray-300"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Hostname
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Operating System
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Sysmon Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Last Scan
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {computers.map((computer) => (
                   <tr
                     key={computer.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${
-                      selectedIds.has(computer.id) ? 'bg-slate-50' : ''
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+                      selectedIds.has(computer.id) ? 'bg-slate-50 dark:bg-slate-800' : ''
                     }`}
                     onClick={() => toggleSelection(computer.id)}
                   >
@@ -194,29 +194,29 @@ export function ComputersPage() {
                         checked={selectedIds.has(computer.id)}
                         onChange={() => toggleSelection(computer.id)}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 rounded border-gray-300"
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                       {computer.hostname}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {computer.operatingSystem || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {computer.sysmonPath ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400">
                           {computer.sysmonVersion || 'Installed'}
                         </span>
                       ) : computer.lastInventoryScan ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                           Not installed
                         </span>
                       ) : (
-                        <span className="text-gray-400">Not scanned</span>
+                        <span className="text-gray-400 dark:text-gray-500">Not scanned</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {computer.lastInventoryScan
                         ? new Date(computer.lastInventoryScan).toLocaleString()
                         : '-'}
@@ -228,7 +228,7 @@ export function ComputersPage() {
           </div>
         )}
 
-        <div className="mt-4 text-sm text-gray-500">Total: {computers.length} computers</div>
+        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">Total: {computers.length} computers</div>
       </div>
     </div>
   );

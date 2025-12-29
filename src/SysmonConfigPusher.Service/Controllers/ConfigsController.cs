@@ -1,11 +1,13 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Core.Models;
+using SysmonConfigPusher.Core.Interfaces;
 
 namespace SysmonConfigPusher.Service.Controllers;
 
@@ -93,6 +95,38 @@ public partial class ConfigsController : ControllerBase
             new ConfigDto(config.Id, config.Filename, config.Tag, config.Hash, config.UploadedBy, config.UploadedAt));
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ConfigDetailDto>> UpdateConfig(int id, [FromBody] UpdateConfigRequest request)
+    {
+        var config = await _db.Configs.FindAsync(id);
+        if (config == null)
+            return NotFound();
+
+        // Update content
+        config.Content = request.Content;
+
+        // Re-parse SCPTAG
+        config.Tag = ParseScpTag(request.Content);
+
+        // Recalculate hash
+        config.Hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Content)));
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("User {User} updated config {Id} (new hash: {Hash})",
+            User.Identity?.Name, id, config.Hash);
+
+        return Ok(new ConfigDetailDto(
+            config.Id,
+            config.Filename,
+            config.Tag,
+            config.Content,
+            config.Hash,
+            config.UploadedBy,
+            config.UploadedAt,
+            config.IsActive));
+    }
+
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteConfig(int id)
     {
@@ -128,6 +162,164 @@ public partial class ConfigsController : ControllerBase
             lines2));
     }
 
+    /// <summary>
+    /// Add an exclusion rule to a config.
+    /// </summary>
+    [HttpPost("{id}/exclusions")]
+    public async Task<ActionResult<AddExclusionResponse>> AddExclusion(int id, [FromBody] AddExclusionRequest request)
+    {
+        var config = await _db.Configs.FindAsync(id);
+        if (config == null)
+            return NotFound();
+
+        try
+        {
+            var doc = XDocument.Parse(config.Content);
+            var sysmon = doc.Root;
+            if (sysmon == null || sysmon.Name.LocalName != "Sysmon")
+            {
+                return BadRequest(new AddExclusionResponse(false, null, "Invalid Sysmon config: root element must be 'Sysmon'"));
+            }
+
+            // Get the event filter element name for this event ID
+            var eventFilterName = GetEventFilterName(request.EventId);
+            if (eventFilterName == null)
+            {
+                return BadRequest(new AddExclusionResponse(false, null, $"Unknown event ID: {request.EventId}"));
+            }
+
+            // Find or create EventFiltering element
+            var eventFiltering = sysmon.Element("EventFiltering");
+            if (eventFiltering == null)
+            {
+                eventFiltering = new XElement("EventFiltering");
+                sysmon.Add(eventFiltering);
+            }
+
+            // Find or create the RuleGroup for this event type
+            var ruleGroup = eventFiltering.Elements("RuleGroup")
+                .FirstOrDefault(rg => rg.Element(eventFilterName) != null);
+
+            XElement eventElement;
+            if (ruleGroup != null)
+            {
+                eventElement = ruleGroup.Element(eventFilterName)!;
+            }
+            else
+            {
+                // Create new RuleGroup with event element
+                ruleGroup = new XElement("RuleGroup",
+                    new XAttribute("name", ""),
+                    new XAttribute("groupRelation", "or"));
+                eventElement = new XElement(eventFilterName,
+                    new XAttribute("onmatch", "exclude"));
+                ruleGroup.Add(eventElement);
+                eventFiltering.Add(ruleGroup);
+            }
+
+            // Check if onmatch is "exclude" - if it's "include", we need to handle differently
+            var onmatchAttr = eventElement.Attribute("onmatch");
+            if (onmatchAttr?.Value.ToLower() != "exclude")
+            {
+                // For include-based configs, we add the exclusion as a separate RuleGroup
+                var excludeRuleGroup = eventFiltering.Elements("RuleGroup")
+                    .FirstOrDefault(rg =>
+                    {
+                        var el = rg.Element(eventFilterName);
+                        return el != null && el.Attribute("onmatch")?.Value.ToLower() == "exclude";
+                    });
+
+                if (excludeRuleGroup != null)
+                {
+                    eventElement = excludeRuleGroup.Element(eventFilterName)!;
+                }
+                else
+                {
+                    // Create new exclude RuleGroup
+                    excludeRuleGroup = new XElement("RuleGroup",
+                        new XAttribute("name", "Exclusions"),
+                        new XAttribute("groupRelation", "or"));
+                    eventElement = new XElement(eventFilterName,
+                        new XAttribute("onmatch", "exclude"));
+                    excludeRuleGroup.Add(eventElement);
+                    eventFiltering.Add(excludeRuleGroup);
+                }
+            }
+
+            // Add the exclusion rule
+            var exclusionElement = new XElement(request.FieldName,
+                new XAttribute("condition", request.Condition ?? "is"),
+                request.Value);
+
+            // Check for duplicate
+            var existingRule = eventElement.Elements(request.FieldName)
+                .FirstOrDefault(e => e.Value == request.Value &&
+                    (e.Attribute("condition")?.Value ?? "is") == (request.Condition ?? "is"));
+
+            if (existingRule != null)
+            {
+                return Ok(new AddExclusionResponse(true, config.Content, "Exclusion rule already exists"));
+            }
+
+            eventElement.Add(exclusionElement);
+
+            // Update the config
+            var newContent = doc.ToString(SaveOptions.None);
+            var newHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(newContent)));
+
+            config.Content = newContent;
+            config.Hash = newHash;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("User {User} added exclusion to config {Id}: {EventFilter}.{Field} {Condition} '{Value}'",
+                User.Identity?.Name, id, eventFilterName, request.FieldName, request.Condition ?? "is", request.Value);
+
+            return Ok(new AddExclusionResponse(true, newContent, null));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to add exclusion to config {Id}", id);
+            return BadRequest(new AddExclusionResponse(false, null, $"Failed to parse config XML: {ex.Message}"));
+        }
+    }
+
+    private static string? GetEventFilterName(int eventId)
+    {
+        return eventId switch
+        {
+            SysmonEventTypes.ProcessCreate => "ProcessCreate",
+            SysmonEventTypes.FileCreationTimeChanged => "FileCreateTime",
+            SysmonEventTypes.NetworkConnection => "NetworkConnect",
+            SysmonEventTypes.ServiceStateChanged => "SysmonStatusChange",
+            SysmonEventTypes.ProcessTerminated => "ProcessTerminate",
+            SysmonEventTypes.DriverLoaded => "DriverLoad",
+            SysmonEventTypes.ImageLoaded => "ImageLoad",
+            SysmonEventTypes.CreateRemoteThread => "CreateRemoteThread",
+            SysmonEventTypes.RawAccessRead => "RawAccessRead",
+            SysmonEventTypes.ProcessAccess => "ProcessAccess",
+            SysmonEventTypes.FileCreate => "FileCreate",
+            SysmonEventTypes.RegistryObjectCreateDelete => "RegistryEvent",
+            SysmonEventTypes.RegistryValueSet => "RegistryEvent",
+            SysmonEventTypes.RegistryKeyValueRename => "RegistryEvent",
+            SysmonEventTypes.FileCreateStreamHash => "FileCreateStreamHash",
+            SysmonEventTypes.ConfigChange => null, // Cannot filter config changes
+            SysmonEventTypes.PipeCreated => "PipeEvent",
+            SysmonEventTypes.PipeConnected => "PipeEvent",
+            SysmonEventTypes.WmiFilterActivity => "WmiEvent",
+            SysmonEventTypes.WmiConsumerActivity => "WmiEvent",
+            SysmonEventTypes.WmiConsumerFilterBinding => "WmiEvent",
+            SysmonEventTypes.DnsQuery => "DnsQuery",
+            SysmonEventTypes.FileDeleteArchived => "FileDelete",
+            SysmonEventTypes.ClipboardChange => "ClipboardChange",
+            SysmonEventTypes.ProcessTampering => "ProcessTampering",
+            SysmonEventTypes.FileDeleteLogged => "FileDelete",
+            SysmonEventTypes.FileBlockExecutable => "FileBlockExecutable",
+            SysmonEventTypes.FileBlockShredding => "FileBlockShredding",
+            SysmonEventTypes.FileExecutableDetected => "FileExecutableDetected",
+            _ => null
+        };
+    }
+
     private static string? ParseScpTag(string content)
     {
         var match = ScpTagRegex().Match(content);
@@ -161,3 +353,17 @@ public record ConfigDiffDto(
     ConfigDto Config2,
     string[] Lines1,
     string[] Lines2);
+
+public record AddExclusionRequest(
+    int EventId,
+    string FieldName,
+    string Value,
+    string? Condition = "is");
+
+public record AddExclusionResponse(
+    bool Success,
+    string? UpdatedContent,
+    string? Message);
+
+public record UpdateConfigRequest(
+    string Content);

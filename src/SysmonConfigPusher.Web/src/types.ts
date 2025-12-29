@@ -83,3 +83,173 @@ export const DEPLOYMENT_OPERATIONS: { value: DeploymentOperation; label: string;
   { value: 'uninstall', label: 'Uninstall Sysmon', description: 'Remove Sysmon from target hosts', requiresConfig: false },
   { value: 'test', label: 'Test Connectivity', description: 'Test WMI connectivity to hosts', requiresConfig: false },
 ];
+
+// Sysmon Event Types
+export const SYSMON_EVENT_TYPES = [
+  { id: 1, name: 'Process Create' },
+  { id: 2, name: 'File Creation Time Changed' },
+  { id: 3, name: 'Network Connection' },
+  { id: 4, name: 'Sysmon Service State Changed' },
+  { id: 5, name: 'Process Terminated' },
+  { id: 6, name: 'Driver Loaded' },
+  { id: 7, name: 'Image Loaded' },
+  { id: 8, name: 'CreateRemoteThread' },
+  { id: 9, name: 'RawAccessRead' },
+  { id: 10, name: 'Process Access' },
+  { id: 11, name: 'File Create' },
+  { id: 12, name: 'Registry Object Create/Delete' },
+  { id: 13, name: 'Registry Value Set' },
+  { id: 14, name: 'Registry Key/Value Rename' },
+  { id: 15, name: 'File Create Stream Hash' },
+  { id: 16, name: 'Sysmon Config Change' },
+  { id: 17, name: 'Pipe Created' },
+  { id: 18, name: 'Pipe Connected' },
+  { id: 19, name: 'WMI Filter Activity' },
+  { id: 20, name: 'WMI Consumer Activity' },
+  { id: 21, name: 'WMI Consumer-Filter Binding' },
+  { id: 22, name: 'DNS Query' },
+  { id: 23, name: 'File Delete Archived' },
+  { id: 24, name: 'Clipboard Change' },
+  { id: 25, name: 'Process Tampering' },
+  { id: 26, name: 'File Delete Logged' },
+  { id: 27, name: 'File Block Executable' },
+  { id: 28, name: 'File Block Shredding' },
+  { id: 29, name: 'File Executable Detected' },
+] as const;
+
+// Event Viewer Types
+export interface SysmonEvent {
+  computerId: number;
+  hostname: string;
+  eventId: number;
+  eventType: string;
+  timeCreated: string;
+  processName: string | null;
+  processId: number | null;
+  image: string | null;
+  commandLine: string | null;
+  user: string | null;
+  parentProcessName: string | null;
+  parentProcessId: number | null;
+  parentImage: string | null;
+  parentCommandLine: string | null;
+  destinationIp: string | null;
+  destinationPort: number | null;
+  destinationHostname: string | null;
+  sourceIp: string | null;
+  sourcePort: number | null;
+  protocol: string | null;
+  targetFilename: string | null;
+  queryName: string | null;
+  queryResults: string | null;
+  imageLoaded: string | null;
+  signature: string | null;
+  rawXml: string | null;
+}
+
+export interface EventQueryRequest {
+  computerIds: number[];
+  eventId?: number;
+  startTime?: string;
+  endTime?: string;
+  processName?: string;
+  imagePath?: string;
+  destinationIp?: string;
+  dnsQueryName?: string;
+  maxResults?: number;
+}
+
+export interface EventQueryResponse {
+  success: boolean;
+  events: SysmonEvent[];
+  totalCount: number;
+  errorMessage: string | null;
+}
+
+export interface EventTypeStat {
+  eventId: number;
+  eventType: string;
+  count: number;
+}
+
+export interface EventStatsResponse {
+  success: boolean;
+  computerId: number;
+  hostname: string;
+  totalEvents: number;
+  eventTypeCounts: EventTypeStat[];
+  errorMessage: string | null;
+}
+
+// Noise Analysis Types
+export type NoiseLevel = 'Normal' | 'Noisy' | 'VeryNoisy';
+
+export interface NoiseAnalysisRun {
+  id: number;
+  computerId: number;
+  hostname: string;
+  timeRangeHours: number;
+  totalEvents: number;
+  analyzedAt: string;
+}
+
+export interface NoiseResult {
+  id: number;
+  eventId: number;
+  eventType: string;
+  groupingKey: string;
+  eventCount: number;
+  eventsPerHour: number;
+  noiseScore: number;
+  noiseLevel: NoiseLevel;
+  suggestedExclusion: string | null;
+}
+
+export interface EventTypeSummary {
+  eventId: number;
+  eventType: string;
+  totalCount: number;
+  eventsPerHour: number;
+  patternCount: number;
+  topPatterns: NoiseResult[];
+}
+
+export interface NoiseAnalysisResponse {
+  success: boolean;
+  run: NoiseAnalysisRun | null;
+  results: NoiseResult[];
+  eventSummaries: EventTypeSummary[];
+  errorMessage: string | null;
+}
+
+export interface HostComparison {
+  computerId: number;
+  hostname: string;
+  totalEvents: number;
+  noisyPatterns: number;
+  veryNoisyPatterns: number;
+  overallNoiseScore: number;
+  topNoisePatterns: NoiseResult[];
+}
+
+export interface CrossHostAnalysisResponse {
+  success: boolean;
+  comparisons: HostComparison[];
+  commonNoisePatterns: string[];
+  errorMessage: string | null;
+}
+
+export interface ExclusionXmlResponse {
+  success: boolean;
+  xml: string | null;
+  errorMessage: string | null;
+}
+
+export interface NoiseThresholds {
+  role: string;
+  processCreatePerHour: number;
+  networkConnectionPerHour: number;
+  imageLoadedPerHour: number;
+  fileCreatePerHour: number;
+  dnsQueryPerHour: number;
+}

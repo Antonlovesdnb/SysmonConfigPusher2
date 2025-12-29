@@ -38,7 +38,8 @@ public class ComputersController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            query = query.Where(c => c.Hostname.Contains(search));
+            var pattern = $"%{search}%";
+            query = query.Where(c => EF.Functions.Like(c.Hostname, pattern));
         }
 
         if (groupId.HasValue)

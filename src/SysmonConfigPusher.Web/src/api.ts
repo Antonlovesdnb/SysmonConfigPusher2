@@ -8,6 +8,14 @@ import type {
   DeploymentJobDetail,
   RefreshResult,
   ConnectivityResult,
+  EventQueryRequest,
+  EventQueryResponse,
+  EventStatsResponse,
+  NoiseAnalysisRun,
+  NoiseAnalysisResponse,
+  CrossHostAnalysisResponse,
+  ExclusionXmlResponse,
+  NoiseThresholds,
 } from './types';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -117,6 +125,32 @@ export const configsApi = {
     const response = await fetchWithAuth(`/api/configs/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error(`Failed to delete config: ${response.status}`);
   },
+
+  async update(id: number, content: string): Promise<ConfigDetail> {
+    const response = await fetchWithAuth(`/api/configs/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!response.ok) throw new Error(`Failed to update config: ${response.status}`);
+    return response.json();
+  },
+
+  async addExclusion(
+    configId: number,
+    eventId: number,
+    fieldName: string,
+    value: string,
+    condition: string = 'is'
+  ): Promise<{ success: boolean; updatedContent: string | null; message: string | null }> {
+    const response = await fetchWithAuth(`/api/configs/${configId}/exclusions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId, fieldName, value, condition }),
+    });
+    if (!response.ok) throw new Error(`Failed to add exclusion: ${response.status}`);
+    return response.json();
+  },
 };
 
 // Deployments API
@@ -156,5 +190,81 @@ export const healthApi = {
     const response = await fetch('/health');
     if (!response.ok) return 'Unhealthy';
     return response.text();
+  },
+};
+
+// Events API
+export const eventsApi = {
+  async query(request: EventQueryRequest): Promise<EventQueryResponse> {
+    const response = await fetchWithAuth('/api/events/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) throw new Error(`Failed to query events: ${response.status}`);
+    return response.json();
+  },
+
+  async getStats(computerId: number, hours: number = 24): Promise<EventStatsResponse> {
+    const response = await fetchWithAuth(`/api/events/stats/${computerId}?hours=${hours}`);
+    if (!response.ok) throw new Error(`Failed to get event stats: ${response.status}`);
+    return response.json();
+  },
+
+  async testAccess(computerId: number): Promise<{ accessible: boolean; errorMessage: string | null }> {
+    const response = await fetchWithAuth(`/api/events/test/${computerId}`);
+    if (!response.ok) throw new Error(`Failed to test event log access: ${response.status}`);
+    return response.json();
+  },
+};
+
+// Analysis API
+export const analysisApi = {
+  async startNoiseAnalysis(computerId: number, timeRangeHours: number = 24): Promise<NoiseAnalysisResponse> {
+    const response = await fetchWithAuth('/api/analysis/noise', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ computerId, timeRangeHours }),
+    });
+    if (!response.ok) throw new Error(`Failed to start noise analysis: ${response.status}`);
+    return response.json();
+  },
+
+  async getNoiseAnalysis(runId: number): Promise<NoiseAnalysisResponse> {
+    const response = await fetchWithAuth(`/api/analysis/noise/${runId}`);
+    if (!response.ok) throw new Error(`Failed to get noise analysis: ${response.status}`);
+    return response.json();
+  },
+
+  async getNoiseHistory(computerId?: number, limit: number = 20): Promise<NoiseAnalysisRun[]> {
+    const params = new URLSearchParams();
+    if (computerId) params.set('computerId', computerId.toString());
+    params.set('limit', limit.toString());
+    const query = params.toString();
+    const response = await fetchWithAuth(`/api/analysis/noise/history?${query}`);
+    if (!response.ok) throw new Error(`Failed to get noise history: ${response.status}`);
+    return response.json();
+  },
+
+  async compareHosts(computerIds: number[], timeRangeHours: number = 24): Promise<CrossHostAnalysisResponse> {
+    const response = await fetchWithAuth('/api/analysis/compare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ computerIds, timeRangeHours }),
+    });
+    if (!response.ok) throw new Error(`Failed to compare hosts: ${response.status}`);
+    return response.json();
+  },
+
+  async getExclusionXml(runId: number, minimumNoiseScore: number = 0.5): Promise<ExclusionXmlResponse> {
+    const response = await fetchWithAuth(`/api/analysis/exclusions/${runId}?minimumNoiseScore=${minimumNoiseScore}`);
+    if (!response.ok) throw new Error(`Failed to get exclusion XML: ${response.status}`);
+    return response.json();
+  },
+
+  async getThresholds(role: string): Promise<NoiseThresholds> {
+    const response = await fetchWithAuth(`/api/analysis/thresholds/${role}`);
+    if (!response.ok) throw new Error(`Failed to get thresholds: ${response.status}`);
+    return response.json();
   },
 };

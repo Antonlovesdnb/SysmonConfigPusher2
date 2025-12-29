@@ -21,3 +21,10 @@ node_modules/
 # OS
 Thumbs.db
 .DS_Store
+nul
+
+# Claude Code
+.claude/
+
+# Debug files
+*.har
