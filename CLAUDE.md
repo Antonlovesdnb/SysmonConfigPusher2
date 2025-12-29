@@ -409,3 +409,7 @@ The service should:
 - Use Windows Authentication (Negotiate)
 - Store data in SQLite at %ProgramData%\SysmonConfigPusher\sysmon.db
 - Serve the React SPA from wwwroot
+
+## General 
+
+- Use relative instead of absolute paths

@@ -6,7 +6,12 @@ namespace SysmonConfigPusher.Core.Interfaces;
 public interface ISysmonBinaryCacheService
 {
     /// <summary>
-    /// Gets the path to the cached Sysmon binary (Sysmon64.exe).
+    /// Gets the filename of the Sysmon binary (e.g., Sysmon.exe or Sysmon64.exe).
+    /// </summary>
+    string BinaryFilename { get; }
+
+    /// <summary>
+    /// Gets the full path to the cached Sysmon binary.
     /// </summary>
     string CachePath { get; }
 

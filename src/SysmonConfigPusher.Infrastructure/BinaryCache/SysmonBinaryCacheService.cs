@@ -32,9 +32,25 @@ public class SysmonBinaryCacheService : ISysmonBinaryCacheService
         Directory.CreateDirectory(_cacheDirectory);
     }
 
-    public string CachePath => Path.Combine(_cacheDirectory, "Sysmon64.exe");
+    public string BinaryFilename => GetBinaryFilename();
+
+    public string CachePath => Path.Combine(_cacheDirectory, BinaryFilename);
 
     public bool IsCached => File.Exists(CachePath);
+
+    private string GetBinaryFilename()
+    {
+        try
+        {
+            var uri = new Uri(_settings.SysmonBinaryUrl);
+            var filename = Path.GetFileName(uri.LocalPath);
+            return string.IsNullOrEmpty(filename) ? "Sysmon64.exe" : filename;
+        }
+        catch
+        {
+            return "Sysmon64.exe";
+        }
+    }
 
     public SysmonCacheInfo? GetCacheInfo()
     {
@@ -63,33 +79,16 @@ public class SysmonBinaryCacheService : ISysmonBinaryCacheService
 
     public async Task<SysmonCacheResult> UpdateCacheAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Downloading Sysmon binary from {Url}", _settings.SysmonBinaryUrl);
+        var downloadUrl = _settings.SysmonBinaryUrl;
+        _logger.LogInformation("Downloading Sysmon binary from {Url} (will save as {Filename})", downloadUrl, BinaryFilename);
 
         try
         {
-            // Download Sysmon.exe (32/64-bit combined) or Sysmon64.exe
-            var downloadUrl = _settings.SysmonBinaryUrl;
+            // Download directly from the configured URL (respects Sysmon.exe vs Sysmon64.exe)
+            using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            // If the URL points to Sysmon.exe, we'll also download Sysmon64.exe
-            // live.sysinternals.com serves both
-            var sysmon64Url = downloadUrl.Replace("Sysmon.exe", "Sysmon64.exe");
-
-            using var response = await _httpClient.GetAsync(sysmon64Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                // Fallback to original URL
-                _logger.LogWarning("Failed to download Sysmon64.exe, trying {Url}", downloadUrl);
-                response.Dispose();
-                using var fallbackResponse = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                fallbackResponse.EnsureSuccessStatusCode();
-
-                await SaveBinaryAsync(fallbackResponse, cancellationToken);
-            }
-            else
-            {
-                await SaveBinaryAsync(response, cancellationToken);
-            }
+            await SaveBinaryAsync(response, cancellationToken);
 
             var cacheInfo = GetCacheInfo();
             _logger.LogInformation("Sysmon binary cached successfully: {Path} (version: {Version}, size: {Size} bytes)",
@@ -99,7 +98,7 @@ public class SysmonBinaryCacheService : ISysmonBinaryCacheService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Failed to download Sysmon binary from {Url}", _settings.SysmonBinaryUrl);
+            _logger.LogError(ex, "Failed to download Sysmon binary from {Url}", downloadUrl);
             return new SysmonCacheResult(false, $"Failed to download: {ex.Message}", null);
         }
         catch (Exception ex)
@@ -128,3 +127,4 @@ public class SysmonBinaryCacheService : ISysmonBinaryCacheService
         File.Move(tempPath, CachePath);
     }
 }
+

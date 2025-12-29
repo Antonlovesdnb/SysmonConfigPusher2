@@ -12,6 +12,7 @@ public class DeploymentWorker : BackgroundService
     private readonly IDeploymentQueue _queue;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<DeploymentHub, IDeploymentHubClient> _hubContext;
+    private readonly ISysmonBinaryCacheService _binaryCacheService;
     private readonly ILogger<DeploymentWorker> _logger;
 
     // Configurable parallelism based on target count
@@ -25,11 +26,13 @@ public class DeploymentWorker : BackgroundService
         IDeploymentQueue queue,
         IServiceScopeFactory scopeFactory,
         IHubContext<DeploymentHub, IDeploymentHubClient> hubContext,
+        ISysmonBinaryCacheService binaryCacheService,
         ILogger<DeploymentWorker> logger)
     {
         _queue = queue;
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
+        _binaryCacheService = binaryCacheService;
         _logger = logger;
     }
 
@@ -196,25 +199,21 @@ public class DeploymentWorker : BackgroundService
         IFileTransferService fileTransfer,
         CancellationToken cancellationToken)
     {
-        const string sysmonPath = "SysmonFiles";
-        const string sysmonExe = "Sysmon64.exe";
+        const string sysmonDir = "SysmonFiles";
         const string configFile = "sysmonconfig.xml";
+        var sysmonExe = _binaryCacheService.BinaryFilename;
 
         // 1. Ensure directory exists
-        var dirResult = await fileTransfer.EnsureDirectoryAsync(hostname, sysmonPath, cancellationToken);
+        var dirResult = await fileTransfer.EnsureDirectoryAsync(hostname, sysmonDir, cancellationToken);
         if (!dirResult.Success)
             return (false, $"Failed to create directory: {dirResult.ErrorMessage}");
 
-        // 2. Copy Sysmon binary (from cache - TODO: implement binary cache service)
-        var sysmonCachePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "SysmonConfigPusher", "cache", sysmonExe);
-
-        if (!File.Exists(sysmonCachePath))
-            return (false, "Sysmon binary not found in cache. Run a binary cache update first.");
+        // 2. Copy Sysmon binary from cache
+        if (!_binaryCacheService.IsCached)
+            return (false, "Sysmon binary not found in cache. Download it from the Settings page first.");
 
         var copyResult = await fileTransfer.CopyFileAsync(
-            hostname, sysmonCachePath, Path.Combine(sysmonPath, sysmonExe), cancellationToken);
+            hostname, _binaryCacheService.CachePath, Path.Combine(sysmonDir, sysmonExe), cancellationToken);
         if (!copyResult.Success)
             return (false, $"Failed to copy Sysmon binary: {copyResult.ErrorMessage}");
 
@@ -222,15 +221,15 @@ public class DeploymentWorker : BackgroundService
         if (config != null)
         {
             var configResult = await fileTransfer.WriteFileAsync(
-                hostname, config.Content, Path.Combine(sysmonPath, configFile), cancellationToken);
+                hostname, config.Content, Path.Combine(sysmonDir, configFile), cancellationToken);
             if (!configResult.Success)
                 return (false, $"Failed to write config: {configResult.ErrorMessage}");
         }
 
         // 4. Install Sysmon
         var installCmd = config != null
-            ? $@"C:\{sysmonPath}\{sysmonExe} -accepteula -i C:\{sysmonPath}\{configFile}"
-            : $@"C:\{sysmonPath}\{sysmonExe} -accepteula -i";
+            ? $@"C:\{sysmonDir}\{sysmonExe} -accepteula -i C:\{sysmonDir}\{configFile}"
+            : $@"C:\{sysmonDir}\{sysmonExe} -accepteula -i";
 
         var execResult = await remoteExec.ExecuteCommandAsync(hostname, installCmd, cancellationToken);
         if (!execResult.Success)

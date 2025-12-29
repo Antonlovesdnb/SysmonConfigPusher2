@@ -62,7 +62,7 @@ public class SettingsController : ControllerBase
                 },
                 SysmonConfigPusher = new SysmonConfigPusherSettingsDto
                 {
-                    SysmonBinaryUrl = sysmonConfigPusher?["SysmonBinaryUrl"]?.GetValue<string>() ?? "https://live.sysinternals.com/Sysmon64.exe",
+                    SysmonBinaryUrl = sysmonConfigPusher?["SysmonBinaryUrl"]?.GetValue<string>() ?? "https://live.sysinternals.com/Sysmon.exe",
                     DefaultParallelism = sysmonConfigPusher?["DefaultParallelism"]?.GetValue<int>() ?? 50,
                     RemoteDirectory = sysmonConfigPusher?["RemoteDirectory"]?.GetValue<string>() ?? "C:\\SysmonFiles"
                 }
@@ -206,7 +206,7 @@ public class AuthorizationSettingsDto
 
 public class SysmonConfigPusherSettingsDto
 {
-    public string SysmonBinaryUrl { get; set; } = "https://live.sysinternals.com/Sysmon64.exe";
+    public string SysmonBinaryUrl { get; set; } = "https://live.sysinternals.com/Sysmon.exe";
     public int DefaultParallelism { get; set; } = 50;
     public string RemoteDirectory { get; set; } = "C:\\SysmonFiles";
 }

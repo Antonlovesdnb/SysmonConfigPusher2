@@ -27,9 +27,15 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
                 var scope = CreateManagementScope(hostname, @"root\cimv2");
                 scope.Connect();
 
+                // Create ProcessStartup object to hide the window
+                using var startupClass = new ManagementClass(scope, new ManagementPath("Win32_ProcessStartup"), null);
+                using var startupInstance = startupClass.CreateInstance();
+                startupInstance["ShowWindow"] = 0; // SW_HIDE - window is hidden
+
                 using var processClass = new ManagementClass(scope, new ManagementPath("Win32_Process"), null);
                 var inParams = processClass.GetMethodParameters("Create");
                 inParams["CommandLine"] = command;
+                inParams["ProcessStartupInformation"] = startupInstance;
 
                 var outParams = processClass.InvokeMethod("Create", inParams, null);
 
