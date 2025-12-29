@@ -4,6 +4,7 @@ import { computersApi, configsApi, deploymentsApi } from '../api';
 import type { Computer, Config, DeploymentOperation } from '../types';
 import { DEPLOYMENT_OPERATIONS } from '../types';
 import { useDeploymentQueue } from '../context/DeploymentQueueContext';
+import { useAuth } from '../context/AuthContext';
 
 type WizardStep = 'computers' | 'operation' | 'config' | 'confirm';
 
@@ -11,6 +12,7 @@ export function DeployWizardPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToQueue, queue, setQueuePanelOpen } = useDeploymentQueue();
+  const { canDeploy } = useAuth();
 
   // State
   const [step, setStep] = useState<WizardStep>('computers');
@@ -162,6 +164,25 @@ export function DeployWizardPage() {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!canDeploy) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="text-center py-8">
+          <svg className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Access Denied</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            You don't have permission to deploy Sysmon configurations.
+          </p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Contact your administrator to request Operator or Admin access.
+          </p>
+        </div>
       </div>
     );
   }

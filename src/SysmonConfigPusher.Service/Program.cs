@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.EntityFrameworkCore;
+using SysmonConfigPusher.Core.Configuration;
 using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Infrastructure.ActiveDirectory;
@@ -7,7 +9,9 @@ using SysmonConfigPusher.Infrastructure.Wmi;
 using SysmonConfigPusher.Infrastructure.Smb;
 using SysmonConfigPusher.Infrastructure.EventLog;
 using SysmonConfigPusher.Infrastructure.NoiseAnalysis;
+using SysmonConfigPusher.Service.Authorization;
 using SysmonConfigPusher.Service.BackgroundServices;
+using SysmonConfigPusher.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +40,13 @@ builder.Services.AddHostedService<DeploymentWorker>();
 builder.Services.AddSingleton<IInventoryScanQueue, InventoryScanQueue>();
 builder.Services.AddHostedService<InventoryScanWorker>();
 
+// Audit service
+builder.Services.AddScoped<IAuditService, AuditService>();
+
+// Authorization settings
+builder.Services.Configure<AuthorizationSettings>(
+    builder.Configuration.GetSection(AuthorizationSettings.SectionName));
+
 // Configure SQLite
 var dataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
@@ -50,22 +61,35 @@ builder.Services.AddDbContext<SysmonDbContext>(options =>
 var disableAuth = builder.Configuration.GetValue<bool>("DisableAuth");
 if (disableAuth)
 {
-    // Development mode: use a simple pass-through auth
+    // Development mode: use a simple pass-through auth with all roles
     builder.Services.AddAuthentication("DevAuth")
-        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, DevAuthHandler>("DevAuth", null);
-    builder.Services.AddAuthorization(options =>
-    {
-        options.DefaultPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-            .RequireAssertion(_ => true)
-            .Build();
-    });
+        .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("DevAuth", null);
 }
 else
 {
+    // Production mode: Windows Integrated Authentication
     builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
         .AddNegotiate();
-    builder.Services.AddAuthorization();
+
+    // Register claims transformation for AD group to role mapping
+    builder.Services.AddScoped<IClaimsTransformation, AdGroupClaimsTransformation>();
 }
+
+// Authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    // Viewer: read-only access (any authenticated user with a role)
+    options.AddPolicy("RequireViewer", policy =>
+        policy.RequireRole("Admin", "Operator", "Viewer"));
+
+    // Operator: can deploy, manage configs, run analysis
+    options.AddPolicy("RequireOperator", policy =>
+        policy.RequireRole("Admin", "Operator"));
+
+    // Admin: full access
+    options.AddPolicy("RequireAdmin", policy =>
+        policy.RequireRole("Admin"));
+});
 
 // Health checks
 builder.Services.AddHealthChecks()
@@ -115,23 +139,30 @@ app.MapFallbackToFile("index.html");
 
 app.Run();
 
-// Development authentication handler that allows all requests
-public class DevAuthHandler : Microsoft.AspNetCore.Authentication.AuthenticationHandler<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions>
+// Development authentication handler that allows all requests with full Admin access
+public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public DevAuthHandler(
-        Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions> options,
+        Microsoft.Extensions.Options.IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         System.Text.Encodings.Web.UrlEncoder encoder)
         : base(options, logger, encoder)
     {
     }
 
-    protected override Task<Microsoft.AspNetCore.Authentication.AuthenticateResult> HandleAuthenticateAsync()
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var claims = new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "DevUser") };
+        // Dev user gets all roles for full access during development
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "DevUser"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Operator"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Viewer")
+        };
         var identity = new System.Security.Claims.ClaimsIdentity(claims, Scheme.Name);
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
-        var ticket = new Microsoft.AspNetCore.Authentication.AuthenticationTicket(principal, Scheme.Name);
-        return Task.FromResult(Microsoft.AspNetCore.Authentication.AuthenticateResult.Success(ticket));
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }

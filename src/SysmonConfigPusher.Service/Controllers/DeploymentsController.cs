@@ -9,20 +9,23 @@ namespace SysmonConfigPusher.Service.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireViewer")]
 public class DeploymentsController : ControllerBase
 {
     private readonly SysmonDbContext _db;
     private readonly IDeploymentQueue _queue;
+    private readonly IAuditService _auditService;
     private readonly ILogger<DeploymentsController> _logger;
 
     public DeploymentsController(
         SysmonDbContext db,
         IDeploymentQueue queue,
+        IAuditService auditService,
         ILogger<DeploymentsController> logger)
     {
         _db = db;
         _queue = queue;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -81,6 +84,7 @@ public class DeploymentsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<DeploymentJobDto>> StartDeployment([FromBody] StartDeploymentRequest request)
     {
         if (request.ComputerIds.Length == 0)
@@ -112,6 +116,9 @@ public class DeploymentsController : ControllerBase
         job.Status = "Running";
         await _db.SaveChangesAsync();
 
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.DeploymentStart,
+            new { JobId = job.Id, Operation = request.Operation, ComputerCount = request.ComputerIds.Length, ConfigId = request.ConfigId });
+
         _logger.LogInformation("User {User} started deployment job {JobId} ({Operation}) on {Count} computers",
             User.Identity?.Name, job.Id, request.Operation, request.ComputerIds.Length);
 
@@ -133,6 +140,7 @@ public class DeploymentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult> CancelJob(int id)
     {
         var job = await _db.DeploymentJobs.FindAsync(id);
@@ -145,6 +153,9 @@ public class DeploymentsController : ControllerBase
         job.Status = "Cancelled";
         job.CompletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.DeploymentCancel,
+            new { JobId = id });
 
         _logger.LogInformation("User {User} cancelled deployment job {JobId}", User.Identity?.Name, id);
 

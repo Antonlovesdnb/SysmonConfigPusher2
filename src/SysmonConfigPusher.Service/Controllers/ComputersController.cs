@@ -9,23 +9,26 @@ namespace SysmonConfigPusher.Service.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireViewer")]
 public class ComputersController : ControllerBase
 {
     private readonly SysmonDbContext _db;
     private readonly IActiveDirectoryService _adService;
     private readonly IInventoryScanQueue _scanQueue;
+    private readonly IAuditService _auditService;
     private readonly ILogger<ComputersController> _logger;
 
     public ComputersController(
         SysmonDbContext db,
         IActiveDirectoryService adService,
         IInventoryScanQueue scanQueue,
+        IAuditService auditService,
         ILogger<ComputersController> logger)
     {
         _db = db;
         _adService = adService;
         _scanQueue = scanQueue;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -86,6 +89,7 @@ public class ComputersController : ControllerBase
     }
 
     [HttpPost("refresh")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<RefreshResultDto>> RefreshFromAD(CancellationToken cancellationToken)
     {
         _logger.LogInformation("User {User} requested AD refresh", User.Identity?.Name);
@@ -131,6 +135,9 @@ public class ComputersController : ControllerBase
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.AdRefresh,
+            new { Added = added, Updated = updated });
+
         _logger.LogInformation("AD refresh complete: {Added} added, {Updated} updated", added, updated);
 
         return Ok(new RefreshResultDto(added, updated, $"Refresh complete: {added} added, {updated} updated"));
@@ -167,7 +174,8 @@ public class ComputersController : ControllerBase
     }
 
     [HttpPost("scan")]
-    public ActionResult<ScanResultDto> ScanComputers([FromBody] ScanRequest request)
+    [Authorize(Policy = "RequireOperator")]
+    public async Task<ActionResult<ScanResultDto>> ScanComputers([FromBody] ScanRequest request)
     {
         _logger.LogInformation("User {User} requested inventory scan for {Count} computers",
             User.Identity?.Name, request.ComputerIds?.Length ?? -1);
@@ -175,18 +183,25 @@ public class ComputersController : ControllerBase
         if (request.ComputerIds == null || request.ComputerIds.Length == 0)
         {
             _scanQueue.EnqueueAll();
+            await _auditService.LogAsync(User.Identity?.Name, AuditAction.InventoryScan,
+                new { Target = "all" });
             return Accepted(new ScanResultDto("Scan queued for all computers"));
         }
 
         _scanQueue.Enqueue(request.ComputerIds);
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.InventoryScan,
+            new { Target = "selected", Count = request.ComputerIds.Length });
         return Accepted(new ScanResultDto($"Scan queued for {request.ComputerIds.Length} computers"));
     }
 
     [HttpPost("scan/all")]
-    public ActionResult<ScanResultDto> ScanAllComputers()
+    [Authorize(Policy = "RequireOperator")]
+    public async Task<ActionResult<ScanResultDto>> ScanAllComputers()
     {
         _logger.LogInformation("User {User} requested full inventory scan", User.Identity?.Name);
         _scanQueue.EnqueueAll();
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.InventoryScan,
+            new { Target = "all" });
         return Accepted(new ScanResultDto("Scan queued for all computers"));
     }
 
@@ -206,6 +221,7 @@ public class ComputersController : ControllerBase
     }
 
     [HttpPost("groups")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<ComputerGroupDto>> CreateGroup([FromBody] CreateGroupRequest request)
     {
         var group = new ComputerGroup
@@ -228,6 +244,9 @@ public class ComputersController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ComputerGroupCreate,
+            new { GroupId = group.Id, Name = request.Name, MemberCount = request.ComputerIds?.Length ?? 0 });
 
         return CreatedAtAction(nameof(GetGroups), new { id = group.Id },
             new ComputerGroupDto(group.Id, group.Name, group.CreatedBy, group.CreatedAt, group.Members.Count));

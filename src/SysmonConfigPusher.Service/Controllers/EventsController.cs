@@ -8,7 +8,7 @@ namespace SysmonConfigPusher.Service.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireViewer")]
 public class EventsController : ControllerBase
 {
     private readonly SysmonDbContext _db;

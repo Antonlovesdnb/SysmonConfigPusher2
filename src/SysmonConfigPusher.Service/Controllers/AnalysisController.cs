@@ -6,17 +6,20 @@ namespace SysmonConfigPusher.Service.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireViewer")]
 public class AnalysisController : ControllerBase
 {
     private readonly INoiseAnalysisService _noiseAnalysisService;
+    private readonly IAuditService _auditService;
     private readonly ILogger<AnalysisController> _logger;
 
     public AnalysisController(
         INoiseAnalysisService noiseAnalysisService,
+        IAuditService auditService,
         ILogger<AnalysisController> logger)
     {
         _noiseAnalysisService = noiseAnalysisService;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -24,6 +27,7 @@ public class AnalysisController : ControllerBase
     /// Start a noise analysis for a single host.
     /// </summary>
     [HttpPost("noise")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<NoiseAnalysisResponse>> StartNoiseAnalysis(
         [FromBody] StartNoiseAnalysisRequest request,
         CancellationToken cancellationToken)
@@ -39,6 +43,9 @@ public class AnalysisController : ControllerBase
             return BadRequest(new NoiseAnalysisResponse(
                 false, null, [], [], result.ErrorMessage));
         }
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.NoiseAnalysisStart,
+            new { ComputerId = request.ComputerId, TimeRangeHours = request.TimeRangeHours, RunId = result.Run?.Id });
 
         var allResults = result.Results.Select(r => new NoiseResultResponseDto(
             r.Id,
@@ -132,6 +139,7 @@ public class AnalysisController : ControllerBase
     /// Compare noise across multiple hosts.
     /// </summary>
     [HttpPost("compare")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<CrossHostAnalysisResponse>> CompareHosts(
         [FromBody] CompareHostsRequest request,
         CancellationToken cancellationToken)

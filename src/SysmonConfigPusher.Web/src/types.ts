@@ -1,5 +1,17 @@
 // API Types - matching backend DTOs
 
+// User and Auth Types
+export interface UserInfo {
+  username: string;
+  displayName: string;
+  roles: string[];
+  highestRole: 'Admin' | 'Operator' | 'Viewer' | 'None';
+  isAdmin: boolean;
+  isOperator: boolean;
+  canDeploy: boolean;
+  canManageConfigs: boolean;
+}
+
 export interface Computer {
   id: number;
   hostname: string;
@@ -252,4 +264,29 @@ export interface NoiseThresholds {
   imageLoadedPerHour: number;
   fileCreatePerHour: number;
   dnsQueryPerHour: number;
+}
+
+// Settings Types
+export interface AuthorizationSettings {
+  adminGroup: string;
+  operatorGroup: string;
+  viewerGroup: string;
+  defaultRole: string;
+}
+
+export interface SysmonConfigPusherSettings {
+  sysmonBinaryUrl: string;
+  defaultParallelism: number;
+  remoteDirectory: string;
+}
+
+export interface AppSettings {
+  authorization: AuthorizationSettings;
+  sysmonConfigPusher: SysmonConfigPusherSettings;
+}
+
+export interface UpdateSettingsResult {
+  success: boolean;
+  message: string;
+  restartRequired: boolean;
 }

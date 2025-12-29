@@ -16,6 +16,9 @@ import type {
   CrossHostAnalysisResponse,
   ExclusionXmlResponse,
   NoiseThresholds,
+  UserInfo,
+  AppSettings,
+  UpdateSettingsResult,
 } from './types';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -265,6 +268,34 @@ export const analysisApi = {
   async getThresholds(role: string): Promise<NoiseThresholds> {
     const response = await fetchWithAuth(`/api/analysis/thresholds/${role}`);
     if (!response.ok) throw new Error(`Failed to get thresholds: ${response.status}`);
+    return response.json();
+  },
+};
+
+// Auth API
+export const authApi = {
+  async getCurrentUser(): Promise<UserInfo> {
+    const response = await fetchWithAuth('/api/auth/me');
+    if (!response.ok) throw new Error(`Failed to get user info: ${response.status}`);
+    return response.json();
+  },
+};
+
+// Settings API
+export const settingsApi = {
+  async get(): Promise<AppSettings> {
+    const response = await fetchWithAuth('/api/settings');
+    if (!response.ok) throw new Error(`Failed to get settings: ${response.status}`);
+    return response.json();
+  },
+
+  async update(settings: AppSettings): Promise<UpdateSettingsResult> {
+    const response = await fetchWithAuth('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) throw new Error(`Failed to update settings: ${response.status}`);
     return response.json();
   },
 };

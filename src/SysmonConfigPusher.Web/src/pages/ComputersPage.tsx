@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { computersApi } from '../api';
 import type { Computer } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export function ComputersPage() {
   const navigate = useNavigate();
+  const { canDeploy } = useAuth();
   const [computers, setComputers] = useState<Computer[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,20 +104,24 @@ export function ComputersPage() {
             >
               Search
             </button>
-            <button
-              onClick={refreshFromAD}
-              disabled={refreshing}
-              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh from AD'}
-            </button>
-            <button
-              onClick={scanInventory}
-              disabled={scanning}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {scanning ? 'Scanning...' : 'Scan Inventory'}
-            </button>
+            {canDeploy && (
+              <button
+                onClick={refreshFromAD}
+                disabled={refreshing}
+                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh from AD'}
+              </button>
+            )}
+            {canDeploy && (
+              <button
+                onClick={scanInventory}
+                disabled={scanning}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {scanning ? 'Scanning...' : 'Scan Inventory'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -135,12 +141,14 @@ export function ComputersPage() {
               >
                 Clear Selection
               </button>
-              <button
-                onClick={deployToSelected}
-                className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
-              >
-                Deploy to Selected
-              </button>
+              {canDeploy && (
+                <button
+                  onClick={deployToSelected}
+                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
+                >
+                  Deploy to Selected
+                </button>
+              )}
             </div>
           </div>
         )}

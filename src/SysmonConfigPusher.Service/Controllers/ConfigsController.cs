@@ -13,15 +13,17 @@ namespace SysmonConfigPusher.Service.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireViewer")]
 public partial class ConfigsController : ControllerBase
 {
     private readonly SysmonDbContext _db;
+    private readonly IAuditService _auditService;
     private readonly ILogger<ConfigsController> _logger;
 
-    public ConfigsController(SysmonDbContext db, ILogger<ConfigsController> logger)
+    public ConfigsController(SysmonDbContext db, IAuditService auditService, ILogger<ConfigsController> logger)
     {
         _db = db;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -62,6 +64,7 @@ public partial class ConfigsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<ConfigDto>> UploadConfig(IFormFile file)
     {
         if (file.Length == 0)
@@ -88,6 +91,9 @@ public partial class ConfigsController : ControllerBase
         _db.Configs.Add(config);
         await _db.SaveChangesAsync();
 
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpload,
+            new { ConfigId = config.Id, Filename = file.FileName, Tag = tag });
+
         _logger.LogInformation("User {User} uploaded config {Filename} with tag {Tag}",
             User.Identity?.Name, file.FileName, tag);
 
@@ -96,11 +102,14 @@ public partial class ConfigsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<ConfigDetailDto>> UpdateConfig(int id, [FromBody] UpdateConfigRequest request)
     {
         var config = await _db.Configs.FindAsync(id);
         if (config == null)
             return NotFound();
+
+        var oldHash = config.Hash;
 
         // Update content
         config.Content = request.Content;
@@ -112,6 +121,9 @@ public partial class ConfigsController : ControllerBase
         config.Hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Content)));
 
         await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpdate,
+            new { ConfigId = id, Filename = config.Filename, OldHash = oldHash, NewHash = config.Hash });
 
         _logger.LogInformation("User {User} updated config {Id} (new hash: {Hash})",
             User.Identity?.Name, id, config.Hash);
@@ -128,6 +140,7 @@ public partial class ConfigsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult> DeleteConfig(int id)
     {
         var config = await _db.Configs.FindAsync(id);
@@ -136,6 +149,9 @@ public partial class ConfigsController : ControllerBase
 
         config.IsActive = false;
         await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigDelete,
+            new { ConfigId = id, Filename = config.Filename });
 
         _logger.LogInformation("User {User} deleted config {Id}", User.Identity?.Name, id);
 
@@ -166,6 +182,7 @@ public partial class ConfigsController : ControllerBase
     /// Add an exclusion rule to a config.
     /// </summary>
     [HttpPost("{id}/exclusions")]
+    [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<AddExclusionResponse>> AddExclusion(int id, [FromBody] AddExclusionRequest request)
     {
         var config = await _db.Configs.FindAsync(id);

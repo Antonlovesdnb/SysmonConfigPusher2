@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { configsApi } from '../api';
 import type { Config, ConfigDetail } from '../types';
 import { XmlEditor } from '../components/XmlEditor';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface UploadResult {
@@ -32,6 +33,7 @@ export function ConfigsPage() {
   const [fontSize, setFontSize] = useState(14);
   const [uploadResultsOpen, setUploadResultsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { canManageConfigs } = useAuth();
   const { darkMode } = useTheme();
 
   const fetchConfigs = async () => {
@@ -208,26 +210,30 @@ export function ConfigsPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Sysmon Configurations</h2>
           <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xml"
-              multiple
-              onChange={handleUpload}
-              className="hidden"
-              id="config-upload"
-            />
-            <label
-              htmlFor="config-upload"
-              className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center gap-2 ${
-                uploading ? 'opacity-50 pointer-events-none' : ''
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              {uploading ? 'Uploading...' : 'Upload Configs'}
-            </label>
+            {canManageConfigs && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xml"
+                  multiple
+                  onChange={handleUpload}
+                  className="hidden"
+                  id="config-upload"
+                />
+                <label
+                  htmlFor="config-upload"
+                  className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center gap-2 ${
+                    uploading ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  {uploading ? 'Uploading...' : 'Upload Configs'}
+                </label>
+              </>
+            )}
             <button
               onClick={fetchConfigs}
               disabled={loading}
@@ -333,24 +339,28 @@ export function ConfigsPage() {
                       >
                         View
                       </button>
-                      <button
-                        onClick={() => editConfig(config.id)}
-                        className="text-blue-600 hover:text-blue-800 mr-4"
-                      >
-                        Edit
-                      </button>
+                      {canManageConfigs && (
+                        <button
+                          onClick={() => editConfig(config.id)}
+                          className="text-blue-600 hover:text-blue-800 mr-4"
+                        >
+                          Edit
+                        </button>
+                      )}
                       <button
                         onClick={() => exportConfig(config)}
                         className="text-green-600 hover:text-green-800 mr-4"
                       >
                         Export
                       </button>
-                      <button
-                        onClick={() => deleteConfig(config.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </button>
+                      {canManageConfigs && (
+                        <button
+                          onClick={() => deleteConfig(config.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
