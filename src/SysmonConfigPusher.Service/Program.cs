@@ -1,6 +1,9 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using SysmonConfigPusher.Core.Configuration;
 using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Data;
@@ -13,6 +16,7 @@ using SysmonConfigPusher.Infrastructure.BinaryCache;
 using SysmonConfigPusher.Service.Authorization;
 using SysmonConfigPusher.Service.BackgroundServices;
 using SysmonConfigPusher.Service.Services;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +29,31 @@ builder.Host.UseWindowsService(options =>
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+
+// Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "SysmonConfigPusher API",
+        Version = "v1",
+        Description = "API for managing Sysmon configurations across Windows endpoints",
+        Contact = new OpenApiContact
+        {
+            Name = "SysmonConfigPusher",
+            Url = new Uri("https://github.com/Antonlovesdnb/SysmonConfigPusher2")
+        }
+    });
+
+    // Include XML comments for better documentation
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+});
 
 // Register infrastructure services
 builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
@@ -140,6 +169,14 @@ if (app.Environment.IsDevelopment())
     app.UseCors();
 }
 
+// Swagger UI (available in all environments for ops visibility)
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "SysmonConfigPusher API v1");
+    options.RoutePrefix = "swagger";
+});
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -149,7 +186,37 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+
+// Health check endpoint with detailed JSON response
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var response = new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                duration = e.Value.Duration.TotalMilliseconds,
+                description = e.Value.Description,
+                exception = e.Value.Exception?.Message
+            })
+        };
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = true
+        }));
+    }
+});
+
+// Simple liveness probe (no dependency checks)
+app.MapGet("/health/live", () => Results.Ok(new { status = "Healthy" }));
+
 app.MapHub<SysmonConfigPusher.Service.Hubs.DeploymentHub>("/hubs/deployment");
 
 // Fallback to index.html for SPA routing
