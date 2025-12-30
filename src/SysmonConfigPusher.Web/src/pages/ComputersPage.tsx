@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { computersApi } from '../api';
 import type { Computer } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export function ComputersPage() {
   const navigate = useNavigate();
   const { canDeploy } = useAuth();
+  const { showToast } = useToast();
   const [computers, setComputers] = useState<Computer[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,7 +40,7 @@ export function ComputersPage() {
       const result = await computersApi.refresh();
       setError(null);
       await fetchComputers();
-      alert(result.message);
+      showToast(result.message, 'success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh from AD');
     } finally {
@@ -51,7 +53,7 @@ export function ComputersPage() {
     try {
       const result = await computersApi.scanAll();
       setError(null);
-      alert(result.message + '\n\nRefresh the page after a few moments to see updated Sysmon info.');
+      showToast(result.message + '\n\nRefresh the page after a few moments to see updated Sysmon info.', 'success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start inventory scan');
     } finally {

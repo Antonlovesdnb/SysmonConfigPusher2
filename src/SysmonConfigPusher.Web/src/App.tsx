@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { DeploymentQueueProvider } from './context/DeploymentQueueContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
+import { ToastContainer } from './components/ToastContainer';
 import { ComputersPage } from './pages/ComputersPage';
 import { ConfigsPage } from './pages/ConfigsPage';
 import { DeployWizardPage } from './pages/DeployWizardPage';
@@ -16,6 +18,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <ToastProvider>
         <BrowserRouter>
           <DeploymentQueueProvider>
           <Routes>
@@ -31,7 +34,9 @@ function App() {
             </Route>
           </Routes>
           </DeploymentQueueProvider>
+          <ToastContainer />
         </BrowserRouter>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );
