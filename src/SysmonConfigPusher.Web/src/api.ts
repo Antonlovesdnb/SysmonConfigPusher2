@@ -257,7 +257,8 @@ export const healthApi = {
   async check(): Promise<string> {
     const response = await fetch('/health');
     if (!response.ok) return 'Unhealthy';
-    return response.text();
+    const data = await response.json();
+    return data.status || 'Unknown';
   },
 };
 
