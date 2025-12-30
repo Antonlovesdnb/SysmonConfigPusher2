@@ -278,6 +278,7 @@ export interface SysmonConfigPusherSettings {
   sysmonBinaryUrl: string;
   defaultParallelism: number;
   remoteDirectory: string;
+  auditLogPath: string;
 }
 
 export interface AppSettings {

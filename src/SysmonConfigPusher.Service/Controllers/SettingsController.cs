@@ -64,7 +64,8 @@ public class SettingsController : ControllerBase
                 {
                     SysmonBinaryUrl = sysmonConfigPusher?["SysmonBinaryUrl"]?.GetValue<string>() ?? "https://live.sysinternals.com/Sysmon.exe",
                     DefaultParallelism = sysmonConfigPusher?["DefaultParallelism"]?.GetValue<int>() ?? 50,
-                    RemoteDirectory = sysmonConfigPusher?["RemoteDirectory"]?.GetValue<string>() ?? "C:\\SysmonFiles"
+                    RemoteDirectory = sysmonConfigPusher?["RemoteDirectory"]?.GetValue<string>() ?? "C:\\SysmonFiles",
+                    AuditLogPath = sysmonConfigPusher?["AuditLogPath"]?.GetValue<string>() ?? ""
                 }
             });
         }
@@ -108,7 +109,8 @@ public class SettingsController : ControllerBase
             {
                 ["SysmonBinaryUrl"] = settings.SysmonConfigPusher.SysmonBinaryUrl,
                 ["DefaultParallelism"] = settings.SysmonConfigPusher.DefaultParallelism,
-                ["RemoteDirectory"] = settings.SysmonConfigPusher.RemoteDirectory
+                ["RemoteDirectory"] = settings.SysmonConfigPusher.RemoteDirectory,
+                ["AuditLogPath"] = settings.SysmonConfigPusher.AuditLogPath
             };
 
             // Write back with proper formatting
@@ -209,6 +211,7 @@ public class SysmonConfigPusherSettingsDto
     public string SysmonBinaryUrl { get; set; } = "https://live.sysinternals.com/Sysmon.exe";
     public int DefaultParallelism { get; set; } = 50;
     public string RemoteDirectory { get; set; } = "C:\\SysmonFiles";
+    public string AuditLogPath { get; set; } = "";
 }
 
 public class UpdateSettingsResultDto

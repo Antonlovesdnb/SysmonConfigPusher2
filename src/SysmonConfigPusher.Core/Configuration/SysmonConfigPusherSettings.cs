@@ -21,4 +21,9 @@ public class SysmonConfigPusherSettings
     /// Remote directory on target hosts for Sysmon files.
     /// </summary>
     public string RemoteDirectory { get; set; } = @"C:\SysmonFiles";
+
+    /// <summary>
+    /// Path to the JSON audit log file. If empty, JSON file logging is disabled.
+    /// </summary>
+    public string AuditLogPath { get; set; } = "";
 }

@@ -384,6 +384,22 @@ export function SettingsPage() {
                 Target directory on remote hosts for Sysmon files
               </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Audit Log Path (JSON)
+              </label>
+              <input
+                type="text"
+                value={settings.sysmonConfigPusher.auditLogPath}
+                onChange={(e) => updateSysmonConfigPusher('auditLogPath', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                placeholder="C:\Logs\sysmon-pusher-audit.json"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Path to write JSON audit log file. Leave empty to disable file logging.
+              </p>
+            </div>
           </div>
         </div>
 
