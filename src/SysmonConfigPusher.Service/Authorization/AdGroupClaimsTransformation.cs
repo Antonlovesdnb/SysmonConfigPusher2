@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using System.Security.Principal;
 using Microsoft.AspNetCore.Authentication;
@@ -14,6 +15,12 @@ public class AdGroupClaimsTransformation : IClaimsTransformation
 {
     private readonly AuthorizationSettings _settings;
     private readonly ILogger<AdGroupClaimsTransformation> _logger;
+
+    // Cache user roles to avoid repeated AD lookups (5 minute TTL)
+    private static readonly ConcurrentDictionary<string, CachedRoles> _roleCache = new();
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
+
+    private record CachedRoles(List<string> Roles, DateTime CachedAt);
 
     public AdGroupClaimsTransformation(
         IOptions<AuthorizationSettings> settings,
@@ -39,46 +46,58 @@ public class AdGroupClaimsTransformation : IClaimsTransformation
         }
 
         var username = principal.Identity?.Name ?? "Unknown";
-        var roleClaims = new List<Claim>();
-        var rolesAdded = new List<string>();
+        var roles = GetCachedRoles(principal, username);
 
-        // Check Windows group membership for each configured role
-        if (IsInGroup(principal, _settings.AdminGroup))
-        {
-            roleClaims.Add(new Claim(ClaimTypes.Role, "Admin"));
-            rolesAdded.Add("Admin");
-        }
-
-        if (IsInGroup(principal, _settings.OperatorGroup))
-        {
-            roleClaims.Add(new Claim(ClaimTypes.Role, "Operator"));
-            rolesAdded.Add("Operator");
-        }
-
-        if (IsInGroup(principal, _settings.ViewerGroup))
-        {
-            roleClaims.Add(new Claim(ClaimTypes.Role, "Viewer"));
-            rolesAdded.Add("Viewer");
-        }
-
-        // If user is not in any configured group, apply default role
-        if (rolesAdded.Count == 0 && !string.IsNullOrEmpty(_settings.DefaultRole))
-        {
-            roleClaims.Add(new Claim(ClaimTypes.Role, _settings.DefaultRole));
-            rolesAdded.Add($"{_settings.DefaultRole} (default)");
-        }
-
-        if (rolesAdded.Count > 0)
-            _logger.LogInformation("User {User} assigned roles: {Roles}", username, string.Join(", ", rolesAdded));
-        else
-            _logger.LogWarning("User {User} has NO roles assigned - will be denied access", username);
+        var roleClaims = roles.Select(r => new Claim(ClaimTypes.Role, r)).ToList();
 
         // Create a new identity with proper RoleClaimType so User.IsInRole() works
-        // Windows auth identity may have a different RoleClaimType that doesn't match ClaimTypes.Role
         var appIdentity = new ClaimsIdentity(roleClaims, "ApplicationRoles", ClaimTypes.Name, ClaimTypes.Role);
         principal.AddIdentity(appIdentity);
 
         return Task.FromResult(principal);
+    }
+
+    private List<string> GetCachedRoles(ClaimsPrincipal principal, string username)
+    {
+        // Check cache first
+        if (_roleCache.TryGetValue(username, out var cached) &&
+            DateTime.UtcNow - cached.CachedAt < CacheDuration)
+        {
+            _logger.LogDebug("Using cached roles for {User}: {Roles}", username, string.Join(", ", cached.Roles));
+            return cached.Roles;
+        }
+
+        // Not in cache or expired - do AD lookups
+        var roles = new List<string>();
+
+        if (IsInGroup(principal, _settings.AdminGroup))
+            roles.Add("Admin");
+
+        if (IsInGroup(principal, _settings.OperatorGroup))
+            roles.Add("Operator");
+
+        if (IsInGroup(principal, _settings.ViewerGroup))
+            roles.Add("Viewer");
+
+        // If user is not in any configured group, apply default role
+        if (roles.Count == 0 && !string.IsNullOrEmpty(_settings.DefaultRole))
+        {
+            roles.Add(_settings.DefaultRole);
+            _logger.LogInformation("User {User} assigned default role: {Role}", username, _settings.DefaultRole);
+        }
+        else if (roles.Count > 0)
+        {
+            _logger.LogInformation("User {User} assigned roles: {Roles}", username, string.Join(", ", roles));
+        }
+        else
+        {
+            _logger.LogWarning("User {User} has NO roles assigned - will be denied access", username);
+        }
+
+        // Cache the result
+        _roleCache[username] = new CachedRoles(roles, DateTime.UtcNow);
+
+        return roles;
     }
 
     private bool IsInGroup(ClaimsPrincipal principal, string groupName)
