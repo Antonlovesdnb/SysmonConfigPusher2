@@ -54,7 +54,7 @@ public class ScheduledDeploymentWorker : BackgroundService
         _logger.LogInformation("Scheduled deployment worker stopped");
     }
 
-    private async Task ProcessDueDeploymentsAsync(CancellationToken cancellationToken)
+    protected virtual async Task ProcessDueDeploymentsAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<SysmonDbContext>();

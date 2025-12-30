@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Restore backend dependencies
+        run: dotnet restore
+
+      - name: Build backend
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: Install frontend dependencies
+        working-directory: src/SysmonConfigPusher.Web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: src/SysmonConfigPusher.Web
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            src/SysmonConfigPusher.Service/bin/Release/net8.0/
+            src/SysmonConfigPusher.Service/wwwroot/
+          retention-days: 7

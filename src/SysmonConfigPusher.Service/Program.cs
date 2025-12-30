@@ -120,11 +120,18 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Auto-migrate database
+// Auto-migrate database (skip for in-memory databases used in testing)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<SysmonDbContext>();
-    db.Database.Migrate();
+    if (db.Database.IsRelational())
+    {
+        db.Database.Migrate();
+    }
+    else
+    {
+        db.Database.EnsureCreated();
+    }
 }
 
 // Configure pipeline
@@ -177,3 +184,6 @@ public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
+
+// Partial class to make Program visible for integration tests
+public partial class Program { }

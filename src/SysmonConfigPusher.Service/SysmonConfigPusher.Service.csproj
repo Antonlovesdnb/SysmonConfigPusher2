@@ -22,4 +22,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SysmonConfigPusher.Service.Tests" />
+  </ItemGroup>
+
 </Project>
