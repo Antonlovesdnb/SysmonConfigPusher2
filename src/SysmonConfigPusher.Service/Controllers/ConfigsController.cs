@@ -18,12 +18,18 @@ public partial class ConfigsController : ControllerBase
 {
     private readonly SysmonDbContext _db;
     private readonly IAuditService _auditService;
+    private readonly IConfigValidationService _validationService;
     private readonly ILogger<ConfigsController> _logger;
 
-    public ConfigsController(SysmonDbContext db, IAuditService auditService, ILogger<ConfigsController> logger)
+    public ConfigsController(
+        SysmonDbContext db,
+        IAuditService auditService,
+        IConfigValidationService validationService,
+        ILogger<ConfigsController> logger)
     {
         _db = db;
         _auditService = auditService;
+        _validationService = validationService;
         _logger = logger;
     }
 
@@ -39,7 +45,9 @@ public partial class ConfigsController : ControllerBase
                 c.Tag,
                 c.Hash,
                 c.UploadedBy,
-                c.UploadedAt))
+                c.UploadedAt,
+                c.IsValid,
+                c.ValidationMessage))
             .ToListAsync();
 
         return Ok(configs);
@@ -79,26 +87,32 @@ public partial class ConfigsController : ControllerBase
         // Calculate hash
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
 
+        // Validate the config
+        var validationResult = _validationService.Validate(content);
+
         var config = new Config
         {
             Filename = file.FileName,
             Tag = tag,
             Content = content,
             Hash = hash,
-            UploadedBy = User.Identity?.Name
+            UploadedBy = User.Identity?.Name,
+            IsValid = validationResult.IsValid,
+            ValidationMessage = validationResult.Message
         };
 
         _db.Configs.Add(config);
         await _db.SaveChangesAsync();
 
         await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpload,
-            new { ConfigId = config.Id, Filename = file.FileName, Tag = tag });
+            new { ConfigId = config.Id, Filename = file.FileName, Tag = tag, IsValid = validationResult.IsValid });
 
-        _logger.LogInformation("User {User} uploaded config {Filename} with tag {Tag}",
-            User.Identity?.Name, file.FileName, tag);
+        _logger.LogInformation("User {User} uploaded config {Filename} with tag {Tag} (valid: {IsValid})",
+            User.Identity?.Name, file.FileName, tag, validationResult.IsValid);
 
         return CreatedAtAction(nameof(GetConfig), new { id = config.Id },
-            new ConfigDto(config.Id, config.Filename, config.Tag, config.Hash, config.UploadedBy, config.UploadedAt));
+            new ConfigDto(config.Id, config.Filename, config.Tag, config.Hash, config.UploadedBy, config.UploadedAt,
+                config.IsValid, config.ValidationMessage));
     }
 
     [HttpPut("{id}")]
@@ -120,13 +134,18 @@ public partial class ConfigsController : ControllerBase
         // Recalculate hash
         config.Hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Content)));
 
+        // Re-validate the config
+        var validationResult = _validationService.Validate(request.Content);
+        config.IsValid = validationResult.IsValid;
+        config.ValidationMessage = validationResult.Message;
+
         await _db.SaveChangesAsync();
 
         await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpdate,
-            new { ConfigId = id, Filename = config.Filename, OldHash = oldHash, NewHash = config.Hash });
+            new { ConfigId = id, Filename = config.Filename, OldHash = oldHash, NewHash = config.Hash, IsValid = validationResult.IsValid });
 
-        _logger.LogInformation("User {User} updated config {Id} (new hash: {Hash})",
-            User.Identity?.Name, id, config.Hash);
+        _logger.LogInformation("User {User} updated config {Id} (new hash: {Hash}, valid: {IsValid})",
+            User.Identity?.Name, id, config.Hash, validationResult.IsValid);
 
         return Ok(new ConfigDetailDto(
             config.Id,
@@ -353,7 +372,9 @@ public record ConfigDto(
     string? Tag,
     string Hash,
     string? UploadedBy,
-    DateTime UploadedAt);
+    DateTime UploadedAt,
+    bool IsValid = true,
+    string? ValidationMessage = null);
 
 public record ConfigDetailDto(
     int Id,

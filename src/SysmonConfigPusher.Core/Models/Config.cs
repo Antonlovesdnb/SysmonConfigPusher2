@@ -11,5 +11,9 @@ public class Config
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
 
+    // Validation status (set at upload time)
+    public bool IsValid { get; set; } = true;
+    public string? ValidationMessage { get; set; }
+
     public ICollection<DeploymentJob> DeploymentJobs { get; set; } = [];
 }

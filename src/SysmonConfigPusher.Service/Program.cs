@@ -61,6 +61,7 @@ builder.Services.AddScoped<IRemoteExecutionService, WmiRemoteExecutionService>()
 builder.Services.AddScoped<IFileTransferService, SmbFileTransferService>();
 builder.Services.AddScoped<IEventLogService, WmiEventLogService>();
 builder.Services.AddScoped<INoiseAnalysisService, NoiseAnalysisService>();
+builder.Services.AddScoped<IConfigValidationService, SysmonConfigPusher.Infrastructure.ConfigValidation.ConfigValidationService>();
 
 // Deployment queue and worker
 builder.Services.AddSingleton<IDeploymentQueue, DeploymentQueue>();

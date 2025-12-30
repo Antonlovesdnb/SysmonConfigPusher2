@@ -41,6 +41,8 @@ export interface Config {
   hash: string;
   uploadedBy: string | null;
   uploadedAt: string;
+  isValid: boolean;
+  validationMessage: string | null;
 }
 
 export interface ConfigDetail extends Config {
