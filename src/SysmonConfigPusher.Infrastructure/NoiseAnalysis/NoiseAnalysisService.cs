@@ -106,7 +106,8 @@ public class NoiseAnalysisService : INoiseAnalysisService
                     eventsPerHour,
                     noiseScore,
                     noiseLevel,
-                    suggestedExclusion));
+                    suggestedExclusion,
+                    aggregation.AvailableFields));
             }
 
             await _db.SaveChangesAsync(cancellationToken);
@@ -271,6 +272,8 @@ public class NoiseAnalysisService : INoiseAnalysisService
             .Select(r =>
             {
                 var eventsPerHour = (double)r.EventCount / run.TimeRangeHours;
+                // Parse grouping key to extract fields for historical data
+                var fields = ParseGroupingKeyToFields(r.GroupingKey);
                 return new NoiseResultDto(
                     r.Id,
                     r.EventId,
@@ -280,7 +283,8 @@ public class NoiseAnalysisService : INoiseAnalysisService
                     eventsPerHour,
                     r.NoiseScore,
                     GetNoiseLevel(r.NoiseScore),
-                    r.SuggestedExclusion);
+                    r.SuggestedExclusion,
+                    fields);
             })
             .OrderByDescending(r => r.NoiseScore)
             .ToList();
@@ -322,6 +326,85 @@ public class NoiseAnalysisService : INoiseAnalysisService
         }
 
         return HostRole.Workstation;
+    }
+
+    public async Task<bool> DeleteAnalysisRunAsync(
+        int runId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var run = await _db.NoiseAnalysisRuns
+                .Include(r => r.Results)
+                .FirstOrDefaultAsync(r => r.Id == runId, cancellationToken);
+
+            if (run == null)
+            {
+                return false;
+            }
+
+            // Remove all results first
+            _db.NoiseResults.RemoveRange(run.Results);
+
+            // Remove the run
+            _db.NoiseAnalysisRuns.Remove(run);
+
+            await _db.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Deleted noise analysis run {RunId}", runId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete noise analysis run {RunId}", runId);
+            return false;
+        }
+    }
+
+    public async Task<int> PurgeAnalysisRunsAsync(
+        int olderThanDays = 0,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            DateTime? cutoffDate = olderThanDays > 0
+                ? DateTime.UtcNow.AddDays(-olderThanDays)
+                : null;
+
+            // Get runs to delete
+            var runsQuery = _db.NoiseAnalysisRuns.AsQueryable();
+            if (cutoffDate.HasValue)
+            {
+                runsQuery = runsQuery.Where(r => r.AnalyzedAt < cutoffDate.Value);
+            }
+
+            var runIds = await runsQuery.Select(r => r.Id).ToListAsync(cancellationToken);
+            var count = runIds.Count;
+
+            if (count == 0)
+            {
+                _logger.LogInformation("No noise analysis runs to purge (older than {Days} days)", olderThanDays);
+                return 0;
+            }
+
+            // Delete results first (due to foreign key)
+            await _db.NoiseResults
+                .Where(r => runIds.Contains(r.RunId))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Delete the runs
+            await _db.NoiseAnalysisRuns
+                .Where(r => runIds.Contains(r.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            _logger.LogInformation("Purged {Count} noise analysis runs (older than {Days} days)", count, olderThanDays);
+            return count;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to purge noise analysis runs");
+            throw;
+        }
     }
 
     private static double CalculateNoiseScore(double eventsPerHour, int threshold)
@@ -387,5 +470,31 @@ public class NoiseAnalysisService : INoiseAnalysisService
             .Replace(">", "&gt;")
             .Replace("\"", "&quot;")
             .Replace("'", "&apos;");
+    }
+
+    /// <summary>
+    /// Parses a grouping key string back into field:value pairs for historical data.
+    /// </summary>
+    private static Dictionary<string, string> ParseGroupingKeyToFields(string groupingKey)
+    {
+        var fields = new Dictionary<string, string>();
+
+        // Format: "FieldName: value | FieldName2: value2"
+        var parts = groupingKey.Split(" | ");
+        foreach (var part in parts)
+        {
+            var colonIndex = part.IndexOf(": ", StringComparison.Ordinal);
+            if (colonIndex > 0)
+            {
+                var fieldName = part[..colonIndex].Trim();
+                var value = part[(colonIndex + 2)..].Trim();
+                if (!string.IsNullOrEmpty(value) && value != "Unknown")
+                {
+                    fields[fieldName] = value;
+                }
+            }
+        }
+
+        return fields;
     }
 }

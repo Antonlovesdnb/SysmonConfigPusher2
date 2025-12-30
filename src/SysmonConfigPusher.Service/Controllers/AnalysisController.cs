@@ -56,7 +56,8 @@ public class AnalysisController : ControllerBase
             r.EventsPerHour,
             r.NoiseScore,
             r.NoiseLevel.ToString(),
-            r.SuggestedExclusion)).ToList();
+            r.SuggestedExclusion,
+            r.AvailableFields)).ToList();
 
         var eventSummaries = BuildEventSummaries(allResults, result.Run?.TimeRangeHours ?? 24);
 
@@ -96,7 +97,8 @@ public class AnalysisController : ControllerBase
             r.EventsPerHour,
             r.NoiseScore,
             r.NoiseLevel.ToString(),
-            r.SuggestedExclusion)).ToList();
+            r.SuggestedExclusion,
+            r.AvailableFields)).ToList();
 
         var eventSummaries = BuildEventSummaries(allResults, result.Run?.TimeRangeHours ?? 24);
 
@@ -177,7 +179,8 @@ public class AnalysisController : ControllerBase
                     r.EventsPerHour,
                     r.NoiseScore,
                     r.NoiseLevel.ToString(),
-                    r.SuggestedExclusion)).ToList())).ToList(),
+                    r.SuggestedExclusion,
+                    r.AvailableFields)).ToList())).ToList(),
             result.CommonNoisePatterns.ToList(),
             null));
     }
@@ -224,6 +227,54 @@ public class AnalysisController : ControllerBase
             thresholds.ImageLoadedPerHour,
             thresholds.FileCreatePerHour,
             thresholds.DnsQueryPerHour));
+    }
+
+    /// <summary>
+    /// Delete a specific noise analysis run.
+    /// </summary>
+    [HttpDelete("noise/{runId}")]
+    [Authorize(Policy = "RequireAdmin")]
+    public async Task<ActionResult<DeleteAnalysisResponse>> DeleteNoiseAnalysis(
+        int runId,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Deleting noise analysis run {RunId} by {User}",
+            runId, User.Identity?.Name);
+
+        var success = await _noiseAnalysisService.DeleteAnalysisRunAsync(runId, cancellationToken);
+
+        if (!success)
+        {
+            return NotFound(new DeleteAnalysisResponse(false, "Analysis run not found"));
+        }
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.NoiseAnalysisDelete,
+            new { RunId = runId });
+
+        return Ok(new DeleteAnalysisResponse(true, "Analysis run deleted"));
+    }
+
+    /// <summary>
+    /// Purge noise analysis runs older than specified days.
+    /// </summary>
+    [HttpDelete("noise/purge")]
+    [Authorize(Policy = "RequireAdmin")]
+    public async Task<ActionResult<PurgeAnalysisResponse>> PurgeNoiseAnalysis(
+        [FromQuery] int olderThanDays = 0,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Purging noise analysis runs older than {Days} days by {User}",
+            olderThanDays, User.Identity?.Name);
+
+        var count = await _noiseAnalysisService.PurgeAnalysisRunsAsync(olderThanDays, cancellationToken);
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.NoiseAnalysisPurge,
+            new { DeletedCount = count, OlderThanDays = olderThanDays });
+
+        var message = olderThanDays > 0
+            ? $"Purged {count} analysis runs older than {olderThanDays} days"
+            : $"Purged {count} analysis runs";
+        return Ok(new PurgeAnalysisResponse(true, count, message));
     }
 
     private static List<EventTypeSummaryDto> BuildEventSummaries(
@@ -280,7 +331,8 @@ public record NoiseResultResponseDto(
     double EventsPerHour,
     double NoiseScore,
     string NoiseLevel,
-    string? SuggestedExclusion);
+    string? SuggestedExclusion,
+    Dictionary<string, string> AvailableFields);
 
 public record CompareHostsRequest(
     int[] ComputerIds,
@@ -313,3 +365,12 @@ public record NoiseThresholdsDto(
     int ImageLoadedPerHour,
     int FileCreatePerHour,
     int DnsQueryPerHour);
+
+public record DeleteAnalysisResponse(
+    bool Success,
+    string Message);
+
+public record PurgeAnalysisResponse(
+    bool Success,
+    int DeletedCount,
+    string Message);

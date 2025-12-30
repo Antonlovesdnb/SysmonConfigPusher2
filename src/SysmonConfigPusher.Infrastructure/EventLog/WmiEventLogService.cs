@@ -177,7 +177,8 @@ public class WmiEventLogService : IEventLogService
                                 aggregations[key] = builder;
                             }
 
-                            builder.AddEvent(sysmonEvent.TimeCreated, GetSampleValue(sysmonEvent));
+                            var fields = GetRelevantFields(sysmonEvent);
+                            builder.AddEvent(sysmonEvent.TimeCreated, GetSampleValue(sysmonEvent), fields);
                         }
                     }
                 }
@@ -402,6 +403,185 @@ public class WmiEventLogService : IEventLogService
         };
     }
 
+    private static Dictionary<string, string> GetRelevantFields(SysmonEvent evt)
+    {
+        var fields = new Dictionary<string, string>();
+
+        // Common fields that are relevant for exclusions
+        if (!string.IsNullOrEmpty(evt.Image))
+            fields["Image"] = evt.Image;
+        if (!string.IsNullOrEmpty(evt.User))
+            fields["User"] = evt.User;
+
+        // Event-specific fields based on Sysmon schema
+        switch (evt.EventId)
+        {
+            case SysmonEventTypes.ProcessCreate:
+                if (!string.IsNullOrEmpty(evt.CommandLine))
+                    fields["CommandLine"] = evt.CommandLine;
+                if (!string.IsNullOrEmpty(evt.ParentImage))
+                    fields["ParentImage"] = evt.ParentImage;
+                if (!string.IsNullOrEmpty(evt.ParentCommandLine))
+                    fields["ParentCommandLine"] = evt.ParentCommandLine;
+                break;
+
+            case SysmonEventTypes.NetworkConnection:
+                if (!string.IsNullOrEmpty(evt.DestinationIp))
+                    fields["DestinationIp"] = evt.DestinationIp;
+                if (evt.DestinationPort.HasValue)
+                    fields["DestinationPort"] = evt.DestinationPort.Value.ToString();
+                if (!string.IsNullOrEmpty(evt.DestinationHostname))
+                    fields["DestinationHostname"] = evt.DestinationHostname;
+                if (!string.IsNullOrEmpty(evt.SourceIp))
+                    fields["SourceIp"] = evt.SourceIp;
+                if (evt.SourcePort.HasValue)
+                    fields["SourcePort"] = evt.SourcePort.Value.ToString();
+                if (!string.IsNullOrEmpty(evt.Protocol))
+                    fields["Protocol"] = evt.Protocol;
+                break;
+
+            case SysmonEventTypes.FileCreate:
+            case SysmonEventTypes.FileCreationTimeChanged:
+            case SysmonEventTypes.FileCreateStreamHash:
+            case SysmonEventTypes.FileDeleteArchived:
+            case SysmonEventTypes.FileDeleteLogged:
+                if (!string.IsNullOrEmpty(evt.TargetFilename))
+                    fields["TargetFilename"] = evt.TargetFilename;
+                break;
+
+            case SysmonEventTypes.ImageLoaded:
+            case SysmonEventTypes.DriverLoaded:
+                if (!string.IsNullOrEmpty(evt.ImageLoaded))
+                    fields["ImageLoaded"] = evt.ImageLoaded;
+                if (!string.IsNullOrEmpty(evt.Signature))
+                    fields["Signature"] = evt.Signature;
+                break;
+
+            case SysmonEventTypes.DnsQuery:
+                if (!string.IsNullOrEmpty(evt.QueryName))
+                    fields["QueryName"] = evt.QueryName;
+                if (!string.IsNullOrEmpty(evt.QueryResults))
+                    fields["QueryResults"] = evt.QueryResults;
+                break;
+
+            case SysmonEventTypes.ProcessAccess:
+                // Process Access needs SourceImage, TargetImage, GrantedAccess from RawXml
+                if (!string.IsNullOrEmpty(evt.RawXml))
+                {
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(evt.RawXml);
+                        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+                        var dataElements = doc.Descendants(ns + "Data").ToList();
+
+                        var sourceImage = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "SourceImage")?.Value;
+                        if (!string.IsNullOrEmpty(sourceImage))
+                            fields["SourceImage"] = sourceImage;
+
+                        var targetImage = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "TargetImage")?.Value;
+                        if (!string.IsNullOrEmpty(targetImage))
+                            fields["TargetImage"] = targetImage;
+
+                        var grantedAccess = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "GrantedAccess")?.Value;
+                        if (!string.IsNullOrEmpty(grantedAccess))
+                            fields["GrantedAccess"] = grantedAccess;
+
+                        var callTrace = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "CallTrace")?.Value;
+                        if (!string.IsNullOrEmpty(callTrace))
+                            fields["CallTrace"] = callTrace;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+                break;
+
+            case SysmonEventTypes.CreateRemoteThread:
+                // CreateRemoteThread needs SourceImage, TargetImage from RawXml
+                if (!string.IsNullOrEmpty(evt.RawXml))
+                {
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(evt.RawXml);
+                        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+                        var dataElements = doc.Descendants(ns + "Data").ToList();
+
+                        var sourceImage = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "SourceImage")?.Value;
+                        if (!string.IsNullOrEmpty(sourceImage))
+                            fields["SourceImage"] = sourceImage;
+
+                        var targetImage = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "TargetImage")?.Value;
+                        if (!string.IsNullOrEmpty(targetImage))
+                            fields["TargetImage"] = targetImage;
+
+                        var startModule = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "StartModule")?.Value;
+                        if (!string.IsNullOrEmpty(startModule))
+                            fields["StartModule"] = startModule;
+
+                        var startFunction = dataElements.FirstOrDefault(d => d.Attribute("Name")?.Value == "StartFunction")?.Value;
+                        if (!string.IsNullOrEmpty(startFunction))
+                            fields["StartFunction"] = startFunction;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+                break;
+
+            case SysmonEventTypes.PipeCreated:
+            case SysmonEventTypes.PipeConnected:
+                // PipeName needs to be extracted from RawXml
+                if (!string.IsNullOrEmpty(evt.RawXml))
+                {
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(evt.RawXml);
+                        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+                        var pipeName = doc.Descendants(ns + "Data")
+                            .FirstOrDefault(d => d.Attribute("Name")?.Value == "PipeName")?.Value;
+                        if (!string.IsNullOrEmpty(pipeName))
+                            fields["PipeName"] = pipeName;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+                break;
+
+            case SysmonEventTypes.RegistryObjectCreateDelete:
+            case SysmonEventTypes.RegistryValueSet:
+            case SysmonEventTypes.RegistryKeyValueRename:
+                // Registry fields need to be parsed from RawXml
+                if (!string.IsNullOrEmpty(evt.RawXml))
+                {
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(evt.RawXml);
+                        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+                        var targetObject = doc.Descendants(ns + "Data")
+                            .FirstOrDefault(d => d.Attribute("Name")?.Value == "TargetObject")?.Value;
+                        if (!string.IsNullOrEmpty(targetObject))
+                            fields["TargetObject"] = targetObject;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+                break;
+
+            case SysmonEventTypes.ProcessTampering:
+                // Type field needs to be parsed from RawXml
+                if (!string.IsNullOrEmpty(evt.RawXml))
+                {
+                    try
+                    {
+                        var doc = System.Xml.Linq.XDocument.Parse(evt.RawXml);
+                        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+                        var type = doc.Descendants(ns + "Data")
+                            .FirstOrDefault(d => d.Attribute("Name")?.Value == "Type")?.Value;
+                        if (!string.IsNullOrEmpty(type))
+                            fields["Type"] = type;
+                    }
+                    catch { /* Ignore parsing errors */ }
+                }
+                break;
+        }
+
+        return fields;
+    }
+
     private class EventAggregationBuilder
     {
         private readonly int _eventId;
@@ -410,6 +590,7 @@ public class WmiEventLogService : IEventLogService
         private DateTime _firstSeen = DateTime.MaxValue;
         private DateTime _lastSeen = DateTime.MinValue;
         private readonly List<string> _sampleValues = new(5);
+        private Dictionary<string, string>? _fields;
 
         public EventAggregationBuilder(int eventId, string groupingKey)
         {
@@ -417,7 +598,7 @@ public class WmiEventLogService : IEventLogService
             _groupingKey = groupingKey;
         }
 
-        public void AddEvent(DateTime timestamp, string sampleValue)
+        public void AddEvent(DateTime timestamp, string sampleValue, Dictionary<string, string>? fields = null)
         {
             _count++;
             if (timestamp < _firstSeen) _firstSeen = timestamp;
@@ -426,6 +607,8 @@ public class WmiEventLogService : IEventLogService
             {
                 _sampleValues.Add(sampleValue);
             }
+            // Keep the first set of fields as representative
+            _fields ??= fields;
         }
 
         public EventAggregation Build()
@@ -437,7 +620,8 @@ public class WmiEventLogService : IEventLogService
                 _count,
                 _firstSeen,
                 _lastSeen,
-                _sampleValues);
+                _sampleValues,
+                _fields ?? new Dictionary<string, string>());
         }
     }
 }

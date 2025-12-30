@@ -58,39 +58,24 @@ public class ComputersController : ControllerBase
         // Get total count first (for pagination info)
         var totalCount = await query.CountAsync();
 
-        // Fetch paginated computers
-        var computerList = await query
+        // Fetch paginated computers and map to DTOs
+        var computers = await query
             .OrderBy(c => c.Hostname)
             .Skip(skip)
             .Take(take)
+            .Select(c => new ComputerDto(
+                c.Id,
+                c.Hostname,
+                c.DistinguishedName,
+                c.OperatingSystem,
+                c.LastSeen,
+                c.SysmonVersion,
+                c.SysmonPath,
+                c.ConfigHash,
+                c.ConfigTag,
+                c.LastDeployment,
+                c.LastInventoryScan))
             .ToListAsync();
-
-        // Get unique config hashes and fetch matching config tags in one query
-        var configHashes = computerList
-            .Where(c => c.ConfigHash != null)
-            .Select(c => c.ConfigHash!)
-            .Distinct()
-            .ToList();
-
-        var configTagMap = configHashes.Count > 0
-            ? await _db.Configs
-                .Where(cfg => configHashes.Contains(cfg.Hash))
-                .ToDictionaryAsync(cfg => cfg.Hash, cfg => cfg.Tag)
-            : new Dictionary<string, string?>();
-
-        // Map to DTOs with config tags
-        var computers = computerList.Select(c => new ComputerDto(
-            c.Id,
-            c.Hostname,
-            c.DistinguishedName,
-            c.OperatingSystem,
-            c.LastSeen,
-            c.SysmonVersion,
-            c.SysmonPath,
-            c.ConfigHash,
-            c.ConfigHash != null && configTagMap.TryGetValue(c.ConfigHash, out var tag) ? tag : null,
-            c.LastDeployment,
-            c.LastInventoryScan)).ToList();
 
         return Ok(new ComputerListResponse(computers, totalCount, skip, take));
     }
@@ -102,15 +87,6 @@ public class ComputersController : ControllerBase
         if (computer == null)
             return NotFound();
 
-        string? configTag = null;
-        if (computer.ConfigHash != null)
-        {
-            configTag = await _db.Configs
-                .Where(c => c.Hash == computer.ConfigHash)
-                .Select(c => c.Tag)
-                .FirstOrDefaultAsync();
-        }
-
         return Ok(new ComputerDto(
             computer.Id,
             computer.Hostname,
@@ -120,7 +96,7 @@ public class ComputersController : ControllerBase
             computer.SysmonVersion,
             computer.SysmonPath,
             computer.ConfigHash,
-            configTag,
+            computer.ConfigTag,
             computer.LastDeployment,
             computer.LastInventoryScan));
     }

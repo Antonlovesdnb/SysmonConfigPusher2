@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { computersApi, eventsApi } from '../api';
 import type { Computer, SysmonEvent, EventQueryRequest } from '../types';
 import { SYSMON_EVENT_TYPES } from '../types';
@@ -13,6 +13,9 @@ export function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<SysmonEvent | null>(null);
   const [showRawXml, setShowRawXml] = useState(false);
 
+  // Computer search
+  const [computerSearch, setComputerSearch] = useState('');
+
   // Filters
   const [eventId, setEventId] = useState<number | undefined>();
   const [timeRange, setTimeRange] = useState<string>('1h');
@@ -20,6 +23,17 @@ export function EventsPage() {
   const [destinationIp, setDestinationIp] = useState('');
   const [dnsQueryName, setDnsQueryName] = useState('');
   const [maxResults, setMaxResults] = useState(500);
+
+  // Filtered computers based on search
+  const filteredComputers = useMemo(() => {
+    if (!computerSearch.trim()) return computers;
+    const search = computerSearch.toLowerCase();
+    return computers.filter((c) =>
+      c.hostname.toLowerCase().includes(search) ||
+      c.operatingSystem?.toLowerCase().includes(search) ||
+      c.sysmonVersion?.toLowerCase().includes(search)
+    );
+  }, [computers, computerSearch]);
 
   useEffect(() => {
     loadComputers();
@@ -48,6 +62,25 @@ export function EventsPage() {
       }
       return next;
     });
+  };
+
+  const toggleAllVisible = () => {
+    const visibleIds = filteredComputers.map((c) => c.id);
+    const allSelected = visibleIds.every((id) => selectedIds.has(id));
+
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        visibleIds.forEach((id) => next.delete(id));
+      } else {
+        visibleIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
   };
 
   const getTimeRange = (): { startTime: string; endTime: string } => {
@@ -146,33 +179,100 @@ export function EventsPage() {
 
         {/* Computer Selection */}
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Computers ({selectedIds.size} selected)
-          </label>
-          {loading ? (
-            <div className="text-gray-500 dark:text-gray-400">Loading computers...</div>
-          ) : computers.length === 0 ? (
-            <div className="text-gray-500 dark:text-gray-400">No computers with Sysmon found</div>
-          ) : (
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              {computers.map((computer) => (
-                <label
-                  key={computer.id}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer border transition-colors ${
-                    selectedIds.has(computer.id)
-                      ? 'bg-slate-100 dark:bg-slate-800 border-slate-400 dark:border-slate-600'
-                      : 'bg-white dark:bg-gray-600 border-gray-200 dark:border-gray-500 hover:border-gray-300 dark:hover:border-gray-400'
-                  }`}
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Select Computers ({selectedIds.size} selected)
+            </label>
+            <div className="flex gap-2">
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={clearSelection}
+                  className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(computer.id)}
-                    onChange={() => toggleSelection(computer.id)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm text-gray-900 dark:text-gray-100">{computer.hostname}</span>
-                </label>
-              ))}
+                  Clear selection
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search box */}
+          <div className="mb-2">
+            <input
+              type="text"
+              value={computerSearch}
+              onChange={(e) => setComputerSearch(e.target.value)}
+              placeholder="Search computers by hostname, OS, or Sysmon version..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-gray-500 dark:text-gray-400 p-4">Loading computers...</div>
+          ) : computers.length === 0 ? (
+            <div className="text-gray-500 dark:text-gray-400 p-4">No computers with Sysmon found</div>
+          ) : (
+            <div className="border dark:border-gray-600 rounded-lg overflow-hidden">
+              <div className="max-h-64 overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 text-left w-10">
+                        <input
+                          type="checkbox"
+                          checked={filteredComputers.length > 0 && filteredComputers.every((c) => selectedIds.has(c.id))}
+                          onChange={toggleAllVisible}
+                          className="w-4 h-4 rounded"
+                          title="Select all visible"
+                        />
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Hostname</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">OS</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sysmon</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredComputers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                          No computers match your search
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredComputers.map((computer) => (
+                        <tr
+                          key={computer.id}
+                          className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            selectedIds.has(computer.id) ? 'bg-slate-50 dark:bg-slate-900/30' : ''
+                          }`}
+                          onClick={() => toggleSelection(computer.id)}
+                        >
+                          <td className="px-4 py-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(computer.id)}
+                              onChange={() => toggleSelection(computer.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-4 h-4 rounded"
+                            />
+                          </td>
+                          <td className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {computer.hostname}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {computer.operatingSystem || '-'}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {computer.sysmonVersion || '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border-t dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400">
+                Showing {filteredComputers.length} of {computers.length} computers
+              </div>
             </div>
           )}
         </div>

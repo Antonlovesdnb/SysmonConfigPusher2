@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { computersApi, configsApi, deploymentsApi } from '../api';
 import type { Computer, Config, DeploymentOperation } from '../types';
@@ -77,13 +77,25 @@ export function DeployWizardPage() {
     }
   };
 
-  const filteredComputers = computers.filter(
-    (c) => !search || c.hostname.toLowerCase().includes(search.toLowerCase())
+  const filteredComputers = useMemo(
+    () => computers.filter(
+      (c) => !search || c.hostname.toLowerCase().includes(search.toLowerCase())
+    ),
+    [computers, search]
   );
 
-  const selectedComputers = computers.filter((c) => selectedIds.has(c.id));
+  const selectedComputers = useMemo(
+    () => computers.filter((c) => selectedIds.has(c.id)),
+    [computers, selectedIds]
+  );
+
   const selectedOperation = DEPLOYMENT_OPERATIONS.find((o) => o.value === operation);
   const selectedConfig = configs.find((c) => c.id === configId);
+
+  // Limit displayed computers in confirm step for performance
+  const maxDisplayedComputers = 50;
+  const displayedComputers = selectedComputers.slice(0, maxDisplayedComputers);
+  const remainingCount = selectedComputers.length - maxDisplayedComputers;
 
   const canProceed = () => {
     switch (step) {
@@ -425,7 +437,7 @@ export function DeployWizardPage() {
                 </h3>
                 <div className="max-h-40 overflow-y-auto">
                   <div className="flex flex-wrap gap-2">
-                    {selectedComputers.map((c) => (
+                    {displayedComputers.map((c) => (
                       <span
                         key={c.id}
                         className="px-2 py-1 bg-white dark:bg-gray-600 border dark:border-gray-500 rounded text-sm text-gray-900 dark:text-gray-100"
@@ -433,6 +445,11 @@ export function DeployWizardPage() {
                         {c.hostname}
                       </span>
                     ))}
+                    {remainingCount > 0 && (
+                      <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-sm font-medium">
+                        and {remainingCount} more...
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

@@ -57,6 +57,22 @@ public interface INoiseAnalysisService
     Task<HostRole> DetermineHostRoleAsync(
         int computerId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a specific analysis run and its results.
+    /// </summary>
+    Task<bool> DeleteAnalysisRunAsync(
+        int runId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Purges analysis runs and results from the database.
+    /// </summary>
+    /// <param name="olderThanDays">Delete runs older than this many days. 0 means all runs.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<int> PurgeAnalysisRunsAsync(
+        int olderThanDays = 0,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -104,7 +120,8 @@ public record NoiseResultDto(
     double EventsPerHour,
     double NoiseScore,
     NoiseLevel NoiseLevel,
-    string? SuggestedExclusion);
+    string? SuggestedExclusion,
+    Dictionary<string, string> AvailableFields);
 
 /// <summary>
 /// Noise level classification.

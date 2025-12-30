@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { ToastContainer } from './components/ToastContainer';
+import { DashboardPage } from './pages/DashboardPage';
 import { ComputersPage } from './pages/ComputersPage';
 import { ConfigsPage } from './pages/ConfigsPage';
 import { DeployWizardPage } from './pages/DeployWizardPage';
@@ -23,7 +24,8 @@ function App() {
           <DeploymentQueueProvider>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<ComputersPage />} />
+              <Route index element={<DashboardPage />} />
+              <Route path="inventory" element={<ComputersPage />} />
               <Route path="configs" element={<ConfigsPage />} />
               <Route path="deploy" element={<DeployWizardPage />} />
               <Route path="deployments" element={<DeploymentsPage />} />

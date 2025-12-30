@@ -18,6 +18,8 @@ public class SysmonDbContext : DbContext
     public DbSet<NoiseAnalysisRun> NoiseAnalysisRuns => Set<NoiseAnalysisRun>();
     public DbSet<NoiseResult> NoiseResults => Set<NoiseResult>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<ScheduledDeployment> ScheduledDeployments => Set<ScheduledDeployment>();
+    public DbSet<ScheduledDeploymentComputer> ScheduledDeploymentComputers => Set<ScheduledDeploymentComputer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +108,39 @@ public class SysmonDbContext : DbContext
         {
             entity.HasIndex(e => e.Timestamp);
             entity.HasIndex(e => e.User);
+        });
+
+        // ScheduledDeployment
+        modelBuilder.Entity<ScheduledDeployment>(entity =>
+        {
+            entity.HasOne(e => e.Config)
+                .WithMany()
+                .HasForeignKey(e => e.ConfigId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.DeploymentJob)
+                .WithMany()
+                .HasForeignKey(e => e.DeploymentJobId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ScheduledAt);
+        });
+
+        // ScheduledDeploymentComputer
+        modelBuilder.Entity<ScheduledDeploymentComputer>(entity =>
+        {
+            entity.HasOne(e => e.ScheduledDeployment)
+                .WithMany(s => s.Computers)
+                .HasForeignKey(e => e.ScheduledDeploymentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Computer)
+                .WithMany()
+                .HasForeignKey(e => e.ComputerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.ScheduledDeploymentId, e.ComputerId }).IsUnique();
         });
     }
 }

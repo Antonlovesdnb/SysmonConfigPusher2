@@ -10,6 +10,7 @@ public class Computer
     public string? SysmonVersion { get; set; }
     public string? SysmonPath { get; set; }
     public string? ConfigHash { get; set; }
+    public string? ConfigTag { get; set; }
     public DateTime? LastDeployment { get; set; }
     public DateTime? LastInventoryScan { get; set; }
 

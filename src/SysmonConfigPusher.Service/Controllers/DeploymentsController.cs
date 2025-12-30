@@ -195,6 +195,121 @@ public class DeploymentsController : ControllerBase
 
         return Ok(new PurgeResultDto(jobCount, resultCount, $"Purged {jobCount} jobs and {resultCount} results older than {olderThanDays ?? 30} days"));
     }
+
+    // Scheduled Deployments
+
+    [HttpGet("schedule")]
+    public async Task<ActionResult<IEnumerable<ScheduledDeploymentDto>>> GetScheduledDeployments()
+    {
+        var scheduled = await _db.ScheduledDeployments
+            .Include(s => s.Config)
+            .Include(s => s.Computers)
+                .ThenInclude(c => c.Computer)
+            .Where(s => s.Status == "Pending" || s.Status == "Running")
+            .OrderBy(s => s.ScheduledAt)
+            .Select(s => new ScheduledDeploymentDto(
+                s.Id,
+                s.Operation,
+                s.ConfigId,
+                s.Config != null ? s.Config.Filename : null,
+                s.Config != null ? s.Config.Tag : null,
+                s.ScheduledAt,
+                s.CreatedBy,
+                s.CreatedAt,
+                s.Status,
+                s.DeploymentJobId,
+                s.Computers.Select(c => new ScheduledComputerDto(c.ComputerId, c.Computer.Hostname)).ToList()))
+            .ToListAsync();
+
+        return Ok(scheduled);
+    }
+
+    [HttpPost("schedule")]
+    [Authorize(Policy = "RequireOperator")]
+    public async Task<ActionResult<ScheduledDeploymentDto>> CreateScheduledDeployment([FromBody] CreateScheduledDeploymentRequest request)
+    {
+        if (request.ComputerIds.Length == 0)
+            return BadRequest("No computers specified");
+
+        if (request.ScheduledAt <= DateTime.UtcNow)
+            return BadRequest("Scheduled time must be in the future");
+
+        var scheduled = new ScheduledDeployment
+        {
+            Operation = request.Operation,
+            ConfigId = request.ConfigId,
+            ScheduledAt = request.ScheduledAt,
+            CreatedBy = User.Identity?.Name,
+            Status = "Pending"
+        };
+
+        _db.ScheduledDeployments.Add(scheduled);
+        await _db.SaveChangesAsync();
+
+        // Add computers
+        foreach (var computerId in request.ComputerIds)
+        {
+            scheduled.Computers.Add(new ScheduledDeploymentComputer
+            {
+                ScheduledDeploymentId = scheduled.Id,
+                ComputerId = computerId
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ScheduledDeploymentCreate,
+            new { ScheduledDeploymentId = scheduled.Id, Operation = request.Operation, ComputerCount = request.ComputerIds.Length, ScheduledAt = request.ScheduledAt });
+
+        _logger.LogInformation("User {User} scheduled deployment {Id} ({Operation}) for {ScheduledAt} on {Count} computers",
+            User.Identity?.Name, scheduled.Id, request.Operation, request.ScheduledAt, request.ComputerIds.Length);
+
+        // Fetch the full data for response
+        var config = request.ConfigId.HasValue
+            ? await _db.Configs.FindAsync(request.ConfigId.Value)
+            : null;
+
+        var computers = await _db.Computers
+            .Where(c => request.ComputerIds.Contains(c.Id))
+            .Select(c => new ScheduledComputerDto(c.Id, c.Hostname))
+            .ToListAsync();
+
+        return CreatedAtAction(nameof(GetScheduledDeployments), null,
+            new ScheduledDeploymentDto(
+                scheduled.Id,
+                scheduled.Operation,
+                scheduled.ConfigId,
+                config?.Filename,
+                config?.Tag,
+                scheduled.ScheduledAt,
+                scheduled.CreatedBy,
+                scheduled.CreatedAt,
+                scheduled.Status,
+                null,
+                computers));
+    }
+
+    [HttpDelete("schedule/{id}")]
+    [Authorize(Policy = "RequireOperator")]
+    public async Task<ActionResult> CancelScheduledDeployment(int id)
+    {
+        var scheduled = await _db.ScheduledDeployments.FindAsync(id);
+        if (scheduled == null)
+            return NotFound();
+
+        if (scheduled.Status != "Pending")
+            return BadRequest("Can only cancel pending scheduled deployments");
+
+        scheduled.Status = "Cancelled";
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ScheduledDeploymentCancel,
+            new { ScheduledDeploymentId = id });
+
+        _logger.LogInformation("User {User} cancelled scheduled deployment {Id}", User.Identity?.Name, id);
+
+        return NoContent();
+    }
 }
 
 public record DeploymentJobDto(
@@ -238,3 +353,24 @@ public record PurgeResultDto(
     int JobsDeleted,
     int ResultsDeleted,
     string Message);
+
+public record ScheduledDeploymentDto(
+    int Id,
+    string Operation,
+    int? ConfigId,
+    string? ConfigFilename,
+    string? ConfigTag,
+    DateTime ScheduledAt,
+    string? CreatedBy,
+    DateTime CreatedAt,
+    string Status,
+    int? DeploymentJobId,
+    List<ScheduledComputerDto> Computers);
+
+public record ScheduledComputerDto(int ComputerId, string Hostname);
+
+public record CreateScheduledDeploymentRequest(
+    string Operation,
+    int? ConfigId,
+    DateTime ScheduledAt,
+    int[] ComputerIds);

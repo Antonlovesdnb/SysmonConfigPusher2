@@ -78,22 +78,26 @@ public class InventoryScanWorker : BackgroundService
                 {
                     var sysmonPath = await remoteExec.GetSysmonPathAsync(computer.Hostname, ct);
                     string? sysmonVersion = null;
-                    string? configHash = null;
 
                     if (!string.IsNullOrEmpty(sysmonPath))
                     {
                         sysmonVersion = await remoteExec.GetSysmonVersionAsync(computer.Hostname, ct);
-                        configHash = await remoteExec.GetSysmonConfigHashAsync(computer.Hostname, ct);
+                    }
+                    else
+                    {
+                        // Sysmon not installed - clear the config hash and tag
+                        computer.ConfigHash = null;
+                        computer.ConfigTag = null;
                     }
 
                     computer.SysmonPath = sysmonPath;
                     computer.SysmonVersion = sysmonVersion;
-                    computer.ConfigHash = configHash;
+                    // Note: ConfigHash and ConfigTag are set during deployment, not during scan
                     computer.LastInventoryScan = DateTime.UtcNow;
 
                     Interlocked.Increment(ref succeeded);
-                    _logger.LogDebug("Scanned {Hostname}: Path={Path}, Version={Version}, ConfigHash={Hash}",
-                        computer.Hostname, sysmonPath ?? "(not installed)", sysmonVersion ?? "N/A", configHash ?? "N/A");
+                    _logger.LogDebug("Scanned {Hostname}: Path={Path}, Version={Version}",
+                        computer.Hostname, sysmonPath ?? "(not installed)", sysmonVersion ?? "N/A");
                 }
                 catch (Exception ex)
                 {

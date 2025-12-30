@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SysmonConfigPusher.Data;
 
@@ -10,9 +11,11 @@ using SysmonConfigPusher.Data;
 namespace SysmonConfigPusher.Data.Migrations
 {
     [DbContext(typeof(SysmonDbContext))]
-    partial class SysmonDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251230194917_AddConfigTagColumn")]
+    partial class AddConfigTagColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.22");
@@ -297,70 +300,6 @@ namespace SysmonConfigPusher.Data.Migrations
                     b.ToTable("NoiseResults");
                 });
 
-            modelBuilder.Entity("SysmonConfigPusher.Core.Models.ScheduledDeployment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("ConfigId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("DeploymentJobId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Operation")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ScheduledAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConfigId");
-
-                    b.HasIndex("DeploymentJobId");
-
-                    b.HasIndex("ScheduledAt");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("ScheduledDeployments");
-                });
-
-            modelBuilder.Entity("SysmonConfigPusher.Core.Models.ScheduledDeploymentComputer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ComputerId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ScheduledDeploymentId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ComputerId");
-
-                    b.HasIndex("ScheduledDeploymentId", "ComputerId")
-                        .IsUnique();
-
-                    b.ToTable("ScheduledDeploymentComputers");
-                });
-
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.ComputerGroupMember", b =>
                 {
                     b.HasOne("SysmonConfigPusher.Core.Models.Computer", "Computer")
@@ -431,42 +370,6 @@ namespace SysmonConfigPusher.Data.Migrations
                     b.Navigation("Run");
                 });
 
-            modelBuilder.Entity("SysmonConfigPusher.Core.Models.ScheduledDeployment", b =>
-                {
-                    b.HasOne("SysmonConfigPusher.Core.Models.Config", "Config")
-                        .WithMany()
-                        .HasForeignKey("ConfigId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("SysmonConfigPusher.Core.Models.DeploymentJob", "DeploymentJob")
-                        .WithMany()
-                        .HasForeignKey("DeploymentJobId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Config");
-
-                    b.Navigation("DeploymentJob");
-                });
-
-            modelBuilder.Entity("SysmonConfigPusher.Core.Models.ScheduledDeploymentComputer", b =>
-                {
-                    b.HasOne("SysmonConfigPusher.Core.Models.Computer", "Computer")
-                        .WithMany()
-                        .HasForeignKey("ComputerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SysmonConfigPusher.Core.Models.ScheduledDeployment", "ScheduledDeployment")
-                        .WithMany("Computers")
-                        .HasForeignKey("ScheduledDeploymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Computer");
-
-                    b.Navigation("ScheduledDeployment");
-                });
-
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.Computer", b =>
                 {
                     b.Navigation("DeploymentResults");
@@ -492,11 +395,6 @@ namespace SysmonConfigPusher.Data.Migrations
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.NoiseAnalysisRun", b =>
                 {
                     b.Navigation("Results");
-                });
-
-            modelBuilder.Entity("SysmonConfigPusher.Core.Models.ScheduledDeployment", b =>
-                {
-                    b.Navigation("Computers");
                 });
 #pragma warning restore 612, 618
         }

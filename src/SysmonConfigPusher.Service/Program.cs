@@ -41,6 +41,9 @@ builder.Services.AddHostedService<DeploymentWorker>();
 builder.Services.AddSingleton<IInventoryScanQueue, InventoryScanQueue>();
 builder.Services.AddHostedService<InventoryScanWorker>();
 
+// Scheduled deployment worker
+builder.Services.AddHostedService<ScheduledDeploymentWorker>();
+
 // Audit service
 builder.Services.AddScoped<IAuditService, AuditService>();
 

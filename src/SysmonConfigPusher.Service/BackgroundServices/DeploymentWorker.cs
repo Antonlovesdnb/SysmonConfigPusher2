@@ -237,10 +237,11 @@ public class DeploymentWorker : BackgroundService
         if (!execResult.Success)
             return (false, $"Failed to install Sysmon: {execResult.ErrorMessage}");
 
-        // 5. Update computer record with config hash if config was deployed
+        // 5. Update computer record with config hash and tag if config was deployed
         if (config != null)
         {
             computer.ConfigHash = config.Hash;
+            computer.ConfigTag = config.Tag;
             computer.LastDeployment = DateTime.UtcNow;
         }
 
@@ -284,8 +285,9 @@ public class DeploymentWorker : BackgroundService
         if (!execResult.Success)
             return (false, $"Failed to update config: {execResult.ErrorMessage}");
 
-        // 4. Update computer record with config hash
+        // 4. Update computer record with config hash and tag
         computer.ConfigHash = config.Hash;
+        computer.ConfigTag = config.Tag;
         computer.LastDeployment = DateTime.UtcNow;
 
         return (true, "Config updated successfully");

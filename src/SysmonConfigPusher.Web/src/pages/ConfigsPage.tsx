@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { configsApi } from '../api';
-import type { Config, ConfigDetail } from '../types';
+import type { Config, ConfigDetail, ConfigDiff } from '../types';
 import { XmlEditor } from '../components/XmlEditor';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -35,6 +35,13 @@ export function ConfigsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { canManageConfigs } = useAuth();
   const { darkMode } = useTheme();
+
+  // Diff state
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [diffConfig1Id, setDiffConfig1Id] = useState<number | null>(null);
+  const [diffConfig2Id, setDiffConfig2Id] = useState<number | null>(null);
+  const [diffData, setDiffData] = useState<ConfigDiff | null>(null);
+  const [loadingDiff, setLoadingDiff] = useState(false);
 
   const fetchConfigs = async () => {
     setLoading(true);
@@ -204,6 +211,67 @@ export function ConfigsPage() {
     setHasChanges(false);
   };
 
+  const openDiffModal = () => {
+    if (configs.length >= 2) {
+      setDiffConfig1Id(configs[0].id);
+      setDiffConfig2Id(configs[1].id);
+    }
+    setDiffData(null);
+    setDiffOpen(true);
+  };
+
+  const loadDiff = async () => {
+    if (!diffConfig1Id || !diffConfig2Id || diffConfig1Id === diffConfig2Id) return;
+
+    setLoadingDiff(true);
+    try {
+      const data = await configsApi.diff(diffConfig1Id, diffConfig2Id);
+      setDiffData(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load diff');
+    } finally {
+      setLoadingDiff(false);
+    }
+  };
+
+  const closeDiff = () => {
+    setDiffOpen(false);
+    setDiffData(null);
+    setDiffConfig1Id(null);
+    setDiffConfig2Id(null);
+  };
+
+  // Compute line-by-line diff
+  const diffLines = useMemo(() => {
+    if (!diffData) return [];
+
+    const lines1 = diffData.lines1;
+    const lines2 = diffData.lines2;
+    const maxLines = Math.max(lines1.length, lines2.length);
+    const result: { lineNum: number; left: string; right: string; status: 'same' | 'changed' | 'added' | 'removed' }[] = [];
+
+    for (let i = 0; i < maxLines; i++) {
+      const left = lines1[i] ?? '';
+      const right = lines2[i] ?? '';
+      let status: 'same' | 'changed' | 'added' | 'removed' = 'same';
+
+      if (left === right) {
+        status = 'same';
+      } else if (!left && right) {
+        status = 'added';
+      } else if (left && !right) {
+        status = 'removed';
+      } else {
+        status = 'changed';
+      }
+
+      result.push({ lineNum: i + 1, left, right, status });
+    }
+
+    return result;
+  }, [diffData]);
+
   return (
     <div className="space-y-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
@@ -234,6 +302,17 @@ export function ConfigsPage() {
                 </label>
               </>
             )}
+            <button
+              onClick={openDiffModal}
+              disabled={configs.length < 2}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+              title={configs.length < 2 ? 'Need at least 2 configs to compare' : 'Compare two configs'}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Compare
+            </button>
             <button
               onClick={fetchConfigs}
               disabled={loading}
@@ -632,6 +711,155 @@ export function ConfigsPage() {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Config Diff Modal */}
+      {diffOpen && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
+            <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+              <h3 className="text-lg font-semibold dark:text-gray-100">Compare Configurations</h3>
+              <button
+                onClick={closeDiff}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Config Selectors */}
+            <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Left Config</label>
+                  <select
+                    value={diffConfig1Id || ''}
+                    onChange={(e) => setDiffConfig1Id(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">Select config...</option>
+                    {configs.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.filename} {c.tag && `(${c.tag})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Right Config</label>
+                  <select
+                    value={diffConfig2Id || ''}
+                    onChange={(e) => setDiffConfig2Id(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="">Select config...</option>
+                    {configs.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.filename} {c.tag && `(${c.tag})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={loadDiff}
+                    disabled={!diffConfig1Id || !diffConfig2Id || diffConfig1Id === diffConfig2Id || loadingDiff}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {loadingDiff ? 'Loading...' : 'Compare'}
+                  </button>
+                </div>
+              </div>
+              {diffConfig1Id === diffConfig2Id && diffConfig1Id && (
+                <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">Please select two different configs to compare.</p>
+              )}
+            </div>
+
+            {/* Diff Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {!diffData ? (
+                <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                  Select two configs and click Compare to see the diff
+                </div>
+              ) : (
+                <div className="flex gap-4 h-full">
+                  {/* Left side */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 truncate">
+                      {diffData.config1.filename} {diffData.config1.tag && <span className="text-gray-500">({diffData.config1.tag})</span>}
+                    </div>
+                    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 rounded border dark:border-gray-700 font-mono text-sm">
+                      {diffLines.map((line) => (
+                        <div
+                          key={`left-${line.lineNum}`}
+                          className={`flex ${
+                            line.status === 'removed' ? 'bg-red-100 dark:bg-red-900/30' :
+                            line.status === 'changed' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                            line.status === 'added' ? 'bg-gray-200 dark:bg-gray-700' :
+                            ''
+                          }`}
+                        >
+                          <span className="w-12 flex-shrink-0 text-right pr-2 text-gray-400 dark:text-gray-500 select-none border-r dark:border-gray-700">
+                            {line.lineNum}
+                          </span>
+                          <pre className="pl-2 overflow-hidden whitespace-pre text-gray-800 dark:text-gray-200">{line.left || ' '}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right side */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 truncate">
+                      {diffData.config2.filename} {diffData.config2.tag && <span className="text-gray-500">({diffData.config2.tag})</span>}
+                    </div>
+                    <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 rounded border dark:border-gray-700 font-mono text-sm">
+                      {diffLines.map((line) => (
+                        <div
+                          key={`right-${line.lineNum}`}
+                          className={`flex ${
+                            line.status === 'added' ? 'bg-green-100 dark:bg-green-900/30' :
+                            line.status === 'changed' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                            line.status === 'removed' ? 'bg-gray-200 dark:bg-gray-700' :
+                            ''
+                          }`}
+                        >
+                          <span className="w-12 flex-shrink-0 text-right pr-2 text-gray-400 dark:text-gray-500 select-none border-r dark:border-gray-700">
+                            {line.lineNum}
+                          </span>
+                          <pre className="pl-2 overflow-hidden whitespace-pre text-gray-800 dark:text-gray-200">{line.right || ' '}</pre>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with legend */}
+            {diffData && (
+              <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="flex items-center gap-1">
+                    <span className="w-4 h-4 bg-red-100 dark:bg-red-900/30 border rounded"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Removed</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-4 h-4 bg-green-100 dark:bg-green-900/30 border rounded"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Added</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-4 h-4 bg-yellow-100 dark:bg-yellow-900/30 border rounded"></span>
+                    <span className="text-gray-600 dark:text-gray-400">Changed</span>
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {diffLines.filter(l => l.status !== 'same').length} differences found
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -8,12 +8,14 @@ export interface QueuedDeployment {
   config: { id: number; filename: string; tag: string | null } | null;
   computers: { id: number; hostname: string }[];
   addedAt: string;
+  scheduledAt: string | null;
 }
 
 interface DeploymentQueueContextType {
   queue: QueuedDeployment[];
-  addToQueue: (deployment: Omit<QueuedDeployment, 'id' | 'addedAt'>) => void;
+  addToQueue: (deployment: Omit<QueuedDeployment, 'id' | 'addedAt' | 'scheduledAt'>) => void;
   removeFromQueue: (id: string) => void;
+  updateScheduledAt: (id: string, scheduledAt: string | null) => void;
   clearQueue: () => void;
   isQueuePanelOpen: boolean;
   setQueuePanelOpen: (open: boolean) => void;
@@ -40,17 +42,26 @@ export function DeploymentQueueProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   }, [queue]);
 
-  const addToQueue = useCallback((deployment: Omit<QueuedDeployment, 'id' | 'addedAt'>) => {
+  const addToQueue = useCallback((deployment: Omit<QueuedDeployment, 'id' | 'addedAt' | 'scheduledAt'>) => {
     const newItem: QueuedDeployment = {
       ...deployment,
       id: crypto.randomUUID(),
       addedAt: new Date().toISOString(),
+      scheduledAt: null,
     };
     setQueue((prev) => [...prev, newItem]);
   }, []);
 
   const removeFromQueue = useCallback((id: string) => {
     setQueue((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const updateScheduledAt = useCallback((id: string, scheduledAt: string | null) => {
+    setQueue((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, scheduledAt } : item
+      )
+    );
   }, []);
 
   const clearQueue = useCallback(() => {
@@ -67,6 +78,7 @@ export function DeploymentQueueProvider({ children }: { children: ReactNode }) {
         queue,
         addToQueue,
         removeFromQueue,
+        updateScheduledAt,
         clearQueue,
         isQueuePanelOpen,
         setQueuePanelOpen,

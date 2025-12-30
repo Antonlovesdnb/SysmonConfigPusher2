@@ -86,7 +86,8 @@ public record EventAggregation(
     int Count,
     DateTime FirstSeen,
     DateTime LastSeen,
-    List<string> SampleValues);
+    List<string> SampleValues,
+    Dictionary<string, string> AvailableFields);
 
 public record EventAggregationResult(
     bool Success,

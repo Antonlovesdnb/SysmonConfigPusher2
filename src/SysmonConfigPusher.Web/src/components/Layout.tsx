@@ -44,6 +44,18 @@ export function Layout() {
                     }`
                   }
                 >
+                  Home
+                </NavLink>
+                <NavLink
+                  to="/inventory"
+                  className={({ isActive }) =>
+                    `px-3 py-1.5 rounded-md text-sm transition-colors ${
+                      isActive
+                        ? 'bg-slate-900 dark:bg-slate-800 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`
+                  }
+                >
                   Inventory
                 </NavLink>
                 <NavLink

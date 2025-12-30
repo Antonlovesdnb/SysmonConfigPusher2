@@ -4,10 +4,12 @@ import type {
   ComputerGroup,
   Config,
   ConfigDetail,
+  ConfigDiff,
   DeploymentJob,
   DeploymentJobDetail,
   RefreshResult,
   ConnectivityResult,
+  ScheduledDeployment,
   EventQueryRequest,
   EventQueryResponse,
   EventStatsResponse,
@@ -19,6 +21,7 @@ import type {
   UserInfo,
   AppSettings,
   UpdateSettingsResult,
+  DashboardStats,
 } from './types';
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -30,6 +33,15 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Re
     },
   });
   return response;
+};
+
+// Dashboard API
+export const dashboardApi = {
+  async getStats(): Promise<DashboardStats> {
+    const response = await fetchWithAuth('/api/dashboard/stats');
+    if (!response.ok) throw new Error(`Failed to fetch dashboard stats: ${response.status}`);
+    return response.json();
+  },
 };
 
 // Computers API
@@ -168,6 +180,12 @@ export const configsApi = {
     if (!response.ok) throw new Error(`Failed to add exclusion: ${response.status}`);
     return response.json();
   },
+
+  async diff(id1: number, id2: number): Promise<ConfigDiff> {
+    const response = await fetchWithAuth(`/api/configs/${id1}/diff/${id2}`);
+    if (!response.ok) throw new Error(`Failed to get config diff: ${response.status}`);
+    return response.json();
+  },
 };
 
 // Deployments API
@@ -204,6 +222,33 @@ export const deploymentsApi = {
     const response = await fetchWithAuth(`/api/deployments?olderThanDays=${olderThanDays}`, { method: 'DELETE' });
     if (!response.ok) throw new Error(`Failed to purge history: ${response.status}`);
     return response.json();
+  },
+
+  // Scheduled deployments
+  async getScheduled(): Promise<ScheduledDeployment[]> {
+    const response = await fetchWithAuth('/api/deployments/schedule');
+    if (!response.ok) throw new Error(`Failed to fetch scheduled deployments: ${response.status}`);
+    return response.json();
+  },
+
+  async schedule(
+    operation: string,
+    computerIds: number[],
+    scheduledAt: string,
+    configId?: number
+  ): Promise<ScheduledDeployment> {
+    const response = await fetchWithAuth('/api/deployments/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operation, computerIds, scheduledAt, configId }),
+    });
+    if (!response.ok) throw new Error(`Failed to schedule deployment: ${response.status}`);
+    return response.json();
+  },
+
+  async cancelScheduled(id: number): Promise<void> {
+    const response = await fetchWithAuth(`/api/deployments/schedule/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to cancel scheduled deployment: ${response.status}`);
   },
 };
 
@@ -288,6 +333,22 @@ export const analysisApi = {
   async getThresholds(role: string): Promise<NoiseThresholds> {
     const response = await fetchWithAuth(`/api/analysis/thresholds/${role}`);
     if (!response.ok) throw new Error(`Failed to get thresholds: ${response.status}`);
+    return response.json();
+  },
+
+  async deleteNoiseAnalysis(runId: number): Promise<{ success: boolean; message: string }> {
+    const response = await fetchWithAuth(`/api/analysis/noise/${runId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error(`Failed to delete analysis: ${response.status}`);
+    return response.json();
+  },
+
+  async purgeNoiseAnalysis(olderThanDays: number = 0): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    const response = await fetchWithAuth(`/api/analysis/noise/purge?olderThanDays=${olderThanDays}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error(`Failed to purge analysis: ${response.status}`);
     return response.json();
   },
 };

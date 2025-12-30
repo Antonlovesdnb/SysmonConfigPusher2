@@ -87,6 +87,21 @@ export interface ConnectivityResult {
   message: string | null;
 }
 
+// Scheduled Deployment Types
+export interface ScheduledDeployment {
+  id: number;
+  operation: string;
+  configId: number | null;
+  configFilename: string | null;
+  configTag: string | null;
+  scheduledAt: string;
+  createdBy: string | null;
+  createdAt: string;
+  status: string;
+  deploymentJobId: number | null;
+  computers: { computerId: number; hostname: string }[];
+}
+
 // Deployment operations
 export type DeploymentOperation = 'install' | 'update' | 'uninstall' | 'test';
 
@@ -216,6 +231,7 @@ export interface NoiseResult {
   noiseScore: number;
   noiseLevel: NoiseLevel;
   suggestedExclusion: string | null;
+  availableFields: Record<string, string>;
 }
 
 export interface EventTypeSummary {
@@ -291,4 +307,48 @@ export interface UpdateSettingsResult {
   success: boolean;
   message: string;
   restartRequired: boolean;
+}
+
+// Config Diff Types
+export interface ConfigDiff {
+  config1: Config;
+  config2: Config;
+  lines1: string[];
+  lines2: string[];
+}
+
+// Dashboard Types
+export interface DashboardStats {
+  computers: {
+    total: number;
+    withSysmon: number;
+    withoutSysmon: number;
+  };
+  totalConfigs: number;
+  deployments: {
+    last24Hours: number;
+    last7Days: number;
+    successRate: number;
+  };
+  recentDeployments: {
+    id: number;
+    operation: string;
+    startedBy: string;
+    startedAt: string;
+    completedAt: string | null;
+    status: string;
+  }[];
+  noiseAnalysis: {
+    last7Days: number;
+  };
+  recentNoiseAnalyses: {
+    id: number;
+    hostname: string;
+    totalEvents: number;
+    analyzedAt: string;
+  }[];
+  sysmonVersions: {
+    version: string;
+    count: number;
+  }[];
 }

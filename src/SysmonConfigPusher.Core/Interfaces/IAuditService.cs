@@ -30,6 +30,8 @@ public enum AuditAction
     DeploymentStart,
     DeploymentCancel,
     DeploymentPurge,
+    ScheduledDeploymentCreate,
+    ScheduledDeploymentCancel,
 
     // Computer/AD operations
     AdRefresh,
@@ -39,6 +41,8 @@ public enum AuditAction
 
     // Analysis operations
     NoiseAnalysisStart,
+    NoiseAnalysisDelete,
+    NoiseAnalysisPurge,
 
     // Auth events
     Login,
