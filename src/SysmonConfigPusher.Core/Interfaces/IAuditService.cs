@@ -45,5 +45,6 @@ public enum AuditAction
 
     // Settings operations
     SettingsUpdate,
-    BinaryCacheUpdate
+    BinaryCacheUpdate,
+    ServiceRestart
 }

@@ -14,17 +14,20 @@ public class SettingsController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly IAuditService _auditService;
     private readonly ISysmonBinaryCacheService _binaryCacheService;
+    private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<SettingsController> _logger;
 
     public SettingsController(
         IWebHostEnvironment env,
         IAuditService auditService,
         ISysmonBinaryCacheService binaryCacheService,
+        IHostApplicationLifetime appLifetime,
         ILogger<SettingsController> logger)
     {
         _env = env;
         _auditService = auditService;
         _binaryCacheService = binaryCacheService;
+        _appLifetime = appLifetime;
         _logger = logger;
     }
 
@@ -189,6 +192,33 @@ public class SettingsController : ControllerBase
             CachedAt = result.CacheInfo?.CachedAt
         });
     }
+
+    /// <summary>
+    /// Restart the application to apply settings changes.
+    /// </summary>
+    [HttpPost("restart")]
+    public async Task<ActionResult<RestartResultDto>> RestartApplication()
+    {
+        _logger.LogWarning("User {User} initiated application restart", User.Identity?.Name);
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ServiceRestart, new
+        {
+            RequestedAt = DateTime.UtcNow
+        });
+
+        // Schedule the stop after a brief delay to allow the response to be sent
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(500);
+            _appLifetime.StopApplication();
+        });
+
+        return Ok(new RestartResultDto
+        {
+            Success = true,
+            Message = "Application is restarting. Please wait a few seconds and refresh the page."
+        });
+    }
 }
 
 // DTOs
@@ -237,4 +267,10 @@ public class BinaryCacheUpdateResultDto
     public string? Version { get; set; }
     public long? FileSizeBytes { get; set; }
     public DateTime? CachedAt { get; set; }
+}
+
+public class RestartResultDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = "";
 }

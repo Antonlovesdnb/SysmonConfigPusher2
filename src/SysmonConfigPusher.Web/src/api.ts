@@ -310,6 +310,12 @@ export const settingsApi = {
     if (!response.ok) throw new Error(`Failed to update binary cache: ${response.status}`);
     return response.json();
   },
+
+  async restart(): Promise<RestartResult> {
+    const response = await fetchWithAuth('/api/settings/restart', { method: 'POST' });
+    if (!response.ok) throw new Error(`Failed to restart service: ${response.status}`);
+    return response.json();
+  },
 };
 
 export interface BinaryCacheStatus {
@@ -326,4 +332,9 @@ export interface BinaryCacheUpdateResult {
   version: string | null;
   fileSizeBytes: number | null;
   cachedAt: string | null;
+}
+
+export interface RestartResult {
+  success: boolean;
+  message: string;
 }
