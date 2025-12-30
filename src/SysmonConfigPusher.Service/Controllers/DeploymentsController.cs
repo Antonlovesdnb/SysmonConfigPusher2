@@ -161,6 +161,40 @@ public class DeploymentsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpDelete]
+    [Authorize(Policy = "RequireAdmin")]
+    public async Task<ActionResult<PurgeResultDto>> PurgeHistory([FromQuery] int? olderThanDays = 30)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-(olderThanDays ?? 30));
+
+        // Find completed jobs older than cutoff
+        var jobsToDelete = await _db.DeploymentJobs
+            .Where(j => j.CompletedAt != null && j.CompletedAt < cutoff)
+            .Where(j => j.Status == "Completed" || j.Status == "CompletedWithErrors" || j.Status == "Cancelled")
+            .Include(j => j.Results)
+            .ToListAsync();
+
+        var jobCount = jobsToDelete.Count;
+        var resultCount = jobsToDelete.Sum(j => j.Results.Count);
+
+        // Delete results first (due to FK), then jobs
+        foreach (var job in jobsToDelete)
+        {
+            _db.DeploymentResults.RemoveRange(job.Results);
+        }
+        _db.DeploymentJobs.RemoveRange(jobsToDelete);
+
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.DeploymentPurge,
+            new { JobsDeleted = jobCount, ResultsDeleted = resultCount, OlderThanDays = olderThanDays ?? 30 });
+
+        _logger.LogInformation("User {User} purged {JobCount} deployment jobs ({ResultCount} results) older than {Days} days",
+            User.Identity?.Name, jobCount, resultCount, olderThanDays ?? 30);
+
+        return Ok(new PurgeResultDto(jobCount, resultCount, $"Purged {jobCount} jobs and {resultCount} results older than {olderThanDays ?? 30} days"));
+    }
 }
 
 public record DeploymentJobDto(
@@ -199,3 +233,8 @@ public record StartDeploymentRequest(
     string Operation,
     int? ConfigId,
     int[] ComputerIds);
+
+public record PurgeResultDto(
+    int JobsDeleted,
+    int ResultsDeleted,
+    string Message);

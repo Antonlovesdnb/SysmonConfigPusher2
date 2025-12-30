@@ -410,6 +410,18 @@ The service should:
 - Store data in SQLite at %ProgramData%\SysmonConfigPusher\sysmon.db
 - Serve the React SPA from wwwroot
 
-## General 
+## General
 
 - Use relative instead of absolute paths
+
+---
+
+## Documentation TODO
+
+The following items need to be documented before release:
+
+- [ ] **TLS Certificate Configuration**: Document how to configure production TLS certificates in appsettings.json:
+  - PFX file method (Path + Password)
+  - Windows Certificate Store method (Subject + Store + Location)
+  - Certificate renewal procedures
+  - Troubleshooting common certificate issues

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- Shield -->
+  <path d="M12 2L4 6v6c0 5.25 3.4 10.15 8 11.5 4.6-1.35 8-6.25 8-11.5V6l-8-4z" fill="#3b82f6" stroke="#1e40af" stroke-width="1"/>
+  <!-- Eye -->
+  <ellipse cx="12" cy="11" rx="4" ry="2.5" fill="none" stroke="white" stroke-width="1.5"/>
+  <circle cx="12" cy="11" r="1.2" fill="white"/>
+</svg>

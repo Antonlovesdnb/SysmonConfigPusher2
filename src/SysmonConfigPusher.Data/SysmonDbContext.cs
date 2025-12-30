@@ -27,6 +27,8 @@ public class SysmonDbContext : DbContext
         modelBuilder.Entity<Computer>(entity =>
         {
             entity.HasIndex(e => e.Hostname).IsUnique();
+            entity.HasIndex(e => e.ConfigHash);
+            entity.HasIndex(e => e.LastInventoryScan);
         });
 
         // ComputerGroupMember - composite key
@@ -52,6 +54,10 @@ public class SysmonDbContext : DbContext
                 .WithMany(c => c.DeploymentJobs)
                 .HasForeignKey(e => e.ConfigId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CompletedAt);
+            entity.HasIndex(e => e.StartedAt);
         });
 
         // DeploymentResult
@@ -84,6 +90,22 @@ public class SysmonDbContext : DbContext
                 .WithMany(r => r.Results)
                 .HasForeignKey(e => e.RunId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.NoiseScore);
+        });
+
+        // Config
+        modelBuilder.Entity<Config>(entity =>
+        {
+            entity.HasIndex(e => e.Hash);
+            entity.HasIndex(e => e.IsActive);
+        });
+
+        // AuditLog
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasIndex(e => e.Timestamp);
+            entity.HasIndex(e => e.User);
         });
     }
 }

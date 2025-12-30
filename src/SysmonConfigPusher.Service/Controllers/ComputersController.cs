@@ -33,10 +33,15 @@ public class ComputersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ComputerDto>>> GetComputers(
+    public async Task<ActionResult<ComputerListResponse>> GetComputers(
         [FromQuery] string? search = null,
-        [FromQuery] int? groupId = null)
+        [FromQuery] int? groupId = null,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 100)
     {
+        // Cap take at 500 to prevent abuse
+        take = Math.Min(take, 500);
+
         var query = _db.Computers.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -50,22 +55,44 @@ public class ComputersController : ControllerBase
             query = query.Where(c => c.GroupMemberships.Any(m => m.GroupId == groupId.Value));
         }
 
-        var computers = await query
+        // Get total count first (for pagination info)
+        var totalCount = await query.CountAsync();
+
+        // Fetch paginated computers
+        var computerList = await query
             .OrderBy(c => c.Hostname)
-            .Select(c => new ComputerDto(
-                c.Id,
-                c.Hostname,
-                c.DistinguishedName,
-                c.OperatingSystem,
-                c.LastSeen,
-                c.SysmonVersion,
-                c.SysmonPath,
-                c.ConfigHash,
-                c.LastDeployment,
-                c.LastInventoryScan))
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
 
-        return Ok(computers);
+        // Get unique config hashes and fetch matching config tags in one query
+        var configHashes = computerList
+            .Where(c => c.ConfigHash != null)
+            .Select(c => c.ConfigHash!)
+            .Distinct()
+            .ToList();
+
+        var configTagMap = configHashes.Count > 0
+            ? await _db.Configs
+                .Where(cfg => configHashes.Contains(cfg.Hash))
+                .ToDictionaryAsync(cfg => cfg.Hash, cfg => cfg.Tag)
+            : new Dictionary<string, string?>();
+
+        // Map to DTOs with config tags
+        var computers = computerList.Select(c => new ComputerDto(
+            c.Id,
+            c.Hostname,
+            c.DistinguishedName,
+            c.OperatingSystem,
+            c.LastSeen,
+            c.SysmonVersion,
+            c.SysmonPath,
+            c.ConfigHash,
+            c.ConfigHash != null && configTagMap.TryGetValue(c.ConfigHash, out var tag) ? tag : null,
+            c.LastDeployment,
+            c.LastInventoryScan)).ToList();
+
+        return Ok(new ComputerListResponse(computers, totalCount, skip, take));
     }
 
     [HttpGet("{id}")]
@@ -74,6 +101,15 @@ public class ComputersController : ControllerBase
         var computer = await _db.Computers.FindAsync(id);
         if (computer == null)
             return NotFound();
+
+        string? configTag = null;
+        if (computer.ConfigHash != null)
+        {
+            configTag = await _db.Configs
+                .Where(c => c.Hash == computer.ConfigHash)
+                .Select(c => c.Tag)
+                .FirstOrDefaultAsync();
+        }
 
         return Ok(new ComputerDto(
             computer.Id,
@@ -84,6 +120,7 @@ public class ComputersController : ControllerBase
             computer.SysmonVersion,
             computer.SysmonPath,
             computer.ConfigHash,
+            configTag,
             computer.LastDeployment,
             computer.LastInventoryScan));
     }
@@ -262,6 +299,7 @@ public record ComputerDto(
     string? SysmonVersion,
     string? SysmonPath,
     string? ConfigHash,
+    string? ConfigTag,
     DateTime? LastDeployment,
     DateTime? LastInventoryScan);
 
@@ -281,3 +319,9 @@ public record ConnectivityResultDto(int ComputerId, bool Reachable, string? Mess
 public record ScanRequest(int[]? ComputerIds);
 
 public record ScanResultDto(string Message);
+
+public record ComputerListResponse(
+    List<ComputerDto> Items,
+    int TotalCount,
+    int Skip,
+    int Take);

@@ -2,11 +2,18 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { deploymentsApi } from '../api';
 import type { DeploymentJob } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export function DeploymentsPage() {
+  const { isAdmin } = useAuth();
+  const { showToast } = useToast();
   const [jobs, setJobs] = useState<DeploymentJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+  const [purgeDays, setPurgeDays] = useState(30);
 
   const fetchJobs = async () => {
     setLoading(true);
@@ -26,6 +33,20 @@ export function DeploymentsPage() {
     const interval = setInterval(fetchJobs, 10000); // Refresh every 10s
     return () => clearInterval(interval);
   }, []);
+
+  const handlePurge = async () => {
+    setPurging(true);
+    try {
+      const result = await deploymentsApi.purge(purgeDays);
+      showToast(result.message, 'success');
+      setShowPurgeConfirm(false);
+      fetchJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to purge history');
+    } finally {
+      setPurging(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -68,8 +89,64 @@ export function DeploymentsPage() {
             >
               Refresh
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowPurgeConfirm(true)}
+                disabled={purging || jobs.length === 0}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                Purge Old
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Purge Confirmation Dialog */}
+        {showPurgeConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Purge Deployment History
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                This will permanently delete completed deployment jobs and their results older than the specified number of days.
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Delete jobs older than:
+                </label>
+                <select
+                  value={purgeDays}
+                  onChange={(e) => setPurgeDays(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                >
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={60}>60 days</option>
+                  <option value={90}>90 days</option>
+                  <option value={0}>All completed jobs</option>
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowPurgeConfirm(false)}
+                  disabled={purging}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePurge}
+                  disabled={purging}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {purging ? 'Purging...' : 'Purge'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>

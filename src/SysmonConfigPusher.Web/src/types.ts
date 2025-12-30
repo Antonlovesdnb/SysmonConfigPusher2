@@ -21,6 +21,7 @@ export interface Computer {
   sysmonVersion: string | null;
   sysmonPath: string | null;
   configHash: string | null;
+  configTag: string | null;
   lastDeployment: string | null;
   lastInventoryScan: string | null;
 }

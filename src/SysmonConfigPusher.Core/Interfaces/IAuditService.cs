@@ -29,6 +29,7 @@ public enum AuditAction
     // Deployment operations
     DeploymentStart,
     DeploymentCancel,
+    DeploymentPurge,
 
     // Computer/AD operations
     AdRefresh,

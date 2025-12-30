@@ -24,7 +24,14 @@ export function Layout() {
         <div className="w-full px-6 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-6">
-              <h1 className="text-xl font-bold whitespace-nowrap">SysmonConfigPusher</h1>
+              <div className="flex items-center gap-2">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L4 6v6c0 5.25 3.4 10.15 8 11.5 4.6-1.35 8-6.25 8-11.5V6l-8-4z" fill="#3b82f6" stroke="#1e40af" strokeWidth="1"/>
+                  <ellipse cx="12" cy="11" rx="4" ry="2.5" fill="none" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="11" r="1.2" fill="white"/>
+                </svg>
+                <h1 className="text-xl font-bold whitespace-nowrap">SysmonConfigPusher</h1>
+              </div>
               <nav className="flex gap-1">
                 <NavLink
                   to="/"
@@ -64,18 +71,6 @@ export function Layout() {
                   Deploy
                 </NavLink>
                 <NavLink
-                  to="/deployments"
-                  className={({ isActive }) =>
-                    `px-3 py-1.5 rounded-md text-sm transition-colors ${
-                      isActive
-                        ? 'bg-slate-900 dark:bg-slate-800 text-white'
-                        : 'text-slate-300 hover:bg-slate-700'
-                    }`
-                  }
-                >
-                  History
-                </NavLink>
-                <NavLink
                   to="/events"
                   className={({ isActive }) =>
                     `px-3 py-1.5 rounded-md text-sm transition-colors ${
@@ -98,6 +93,18 @@ export function Layout() {
                   }
                 >
                   Noise
+                </NavLink>
+                <NavLink
+                  to="/deployments"
+                  className={({ isActive }) =>
+                    `px-3 py-1.5 rounded-md text-sm transition-colors ${
+                      isActive
+                        ? 'bg-slate-900 dark:bg-slate-800 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`
+                  }
+                >
+                  History
                 </NavLink>
               </nav>
             </div>

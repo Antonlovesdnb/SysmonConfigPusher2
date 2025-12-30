@@ -16,11 +16,12 @@ public class DeploymentWorker : BackgroundService
     private readonly ILogger<DeploymentWorker> _logger;
 
     // Configurable parallelism based on target count
+    // Note: WMI connections are expensive - keep parallelism low to avoid timeouts
     private const int SmallDeploymentThreshold = 10;
     private const int MediumDeploymentThreshold = 100;
-    private const int SmallParallelism = 5;
-    private const int MediumParallelism = 20;
-    private const int LargeParallelism = 50;
+    private const int SmallParallelism = 3;
+    private const int MediumParallelism = 8;
+    private const int LargeParallelism = 10;
 
     public DeploymentWorker(
         IDeploymentQueue queue,
@@ -184,7 +185,7 @@ public class DeploymentWorker : BackgroundService
     {
         return operation.ToLowerInvariant() switch
         {
-            "install" => await InstallSysmonAsync(computer.Hostname, config, remoteExec, fileTransfer, cancellationToken),
+            "install" => await InstallSysmonAsync(computer, config, remoteExec, fileTransfer, cancellationToken),
             "update" or "pushconfig" => await UpdateConfigAsync(computer, config, remoteExec, fileTransfer, cancellationToken),
             "uninstall" => await UninstallSysmonAsync(computer, remoteExec, cancellationToken),
             "test" => await TestConnectivityAsync(computer.Hostname, remoteExec, cancellationToken),
@@ -193,12 +194,13 @@ public class DeploymentWorker : BackgroundService
     }
 
     private async Task<(bool, string?)> InstallSysmonAsync(
-        string hostname,
+        Computer computer,
         Config? config,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
         CancellationToken cancellationToken)
     {
+        var hostname = computer.Hostname;
         const string sysmonDir = "SysmonFiles";
         const string configFile = "sysmonconfig.xml";
         var sysmonExe = _binaryCacheService.BinaryFilename;
@@ -234,6 +236,13 @@ public class DeploymentWorker : BackgroundService
         var execResult = await remoteExec.ExecuteCommandAsync(hostname, installCmd, cancellationToken);
         if (!execResult.Success)
             return (false, $"Failed to install Sysmon: {execResult.ErrorMessage}");
+
+        // 5. Update computer record with config hash if config was deployed
+        if (config != null)
+        {
+            computer.ConfigHash = config.Hash;
+            computer.LastDeployment = DateTime.UtcNow;
+        }
 
         return (true, "Sysmon installed successfully");
     }
@@ -274,6 +283,10 @@ public class DeploymentWorker : BackgroundService
         var execResult = await remoteExec.ExecuteCommandAsync(computer.Hostname, updateCmd, cancellationToken);
         if (!execResult.Success)
             return (false, $"Failed to update config: {execResult.ErrorMessage}");
+
+        // 4. Update computer record with config hash
+        computer.ConfigHash = config.Hash;
+        computer.LastDeployment = DateTime.UtcNow;
 
         return (true, "Config updated successfully");
     }

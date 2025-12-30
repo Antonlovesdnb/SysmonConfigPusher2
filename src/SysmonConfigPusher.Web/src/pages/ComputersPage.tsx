@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { computersApi } from '../api';
 import type { Computer } from '../types';
@@ -13,9 +13,12 @@ export function ComputersPage() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ scanned: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const scanPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanStartTimeRef = useRef<string | null>(null);
 
   const fetchComputers = useCallback(async () => {
     setLoading(true);
@@ -23,8 +26,10 @@ export function ComputersPage() {
       const data = await computersApi.list(search || undefined);
       setComputers(data);
       setError(null);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load computers');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -33,6 +38,15 @@ export function ComputersPage() {
   useEffect(() => {
     fetchComputers();
   }, [fetchComputers]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (scanPollRef.current) {
+        clearInterval(scanPollRef.current);
+      }
+    };
+  }, []);
 
   const refreshFromAD = async () => {
     setRefreshing(true);
@@ -50,14 +64,58 @@ export function ComputersPage() {
 
   const scanInventory = async () => {
     setScanning(true);
+    setScanProgress({ scanned: 0, total: computers.length });
+    scanStartTimeRef.current = new Date().toISOString();
+
     try {
-      const result = await computersApi.scanAll();
+      await computersApi.scanAll();
       setError(null);
-      showToast(result.message + '\n\nRefresh the page after a few moments to see updated Sysmon info.', 'success');
+
+      // Start polling to track scan progress
+      scanPollRef.current = setInterval(async () => {
+        try {
+          const updatedComputers = await computersApi.list(search || undefined);
+
+          // Count how many computers have been scanned since we started
+          const scannedCount = updatedComputers.filter((c) => {
+            if (!c.lastInventoryScan) return false;
+            return new Date(c.lastInventoryScan) >= new Date(scanStartTimeRef.current!);
+          }).length;
+
+          setScanProgress({ scanned: scannedCount, total: updatedComputers.length });
+
+          // If all computers have been scanned, stop polling
+          if (scannedCount >= updatedComputers.length) {
+            if (scanPollRef.current) {
+              clearInterval(scanPollRef.current);
+              scanPollRef.current = null;
+            }
+            setComputers(updatedComputers);
+            setScanning(false);
+            setScanProgress(null);
+            showToast(`Scan complete: ${scannedCount} computers scanned`, 'success');
+          }
+        } catch {
+          // Ignore polling errors
+        }
+      }, 2000);
+
+      // Fallback timeout after 2 minutes
+      setTimeout(() => {
+        if (scanPollRef.current) {
+          clearInterval(scanPollRef.current);
+          scanPollRef.current = null;
+          setScanning(false);
+          setScanProgress(null);
+          fetchComputers();
+          showToast('Scan timeout - refreshing results', 'info');
+        }
+      }, 120000);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start inventory scan');
-    } finally {
       setScanning(false);
+      setScanProgress(null);
     }
   };
 
@@ -109,16 +167,16 @@ export function ComputersPage() {
             {canDeploy && (
               <button
                 onClick={refreshFromAD}
-                disabled={refreshing}
+                disabled={refreshing || scanning}
                 className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
               >
-                {refreshing ? 'Refreshing...' : 'Refresh from AD'}
+                {refreshing ? 'Populating...' : 'Populate from AD'}
               </button>
             )}
             {canDeploy && (
               <button
                 onClick={scanInventory}
-                disabled={scanning}
+                disabled={scanning || refreshing}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
                 {scanning ? 'Scanning...' : 'Scan Inventory'}
@@ -126,6 +184,28 @@ export function ComputersPage() {
             )}
           </div>
         </div>
+
+        {/* Scan Progress Bar */}
+        {scanning && scanProgress && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                Scanning inventory...
+              </span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {scanProgress.scanned} / {scanProgress.total} computers
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+              <div
+                className="bg-emerald-600 h-2.5 rounded-full transition-all duration-500"
+                style={{
+                  width: `${scanProgress.total > 0 ? (scanProgress.scanned / scanProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
@@ -159,7 +239,7 @@ export function ComputersPage() {
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
         ) : computers.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            No computers found. Click "Refresh from AD" to enumerate computers from Active
+            No computers found. Click "Populate from AD" to enumerate computers from Active
             Directory.
           </div>
         ) : (
@@ -185,7 +265,10 @@ export function ComputersPage() {
                     Sysmon Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Last Scan
+                    Config Tag
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Last Sysmon Scan
                   </th>
                 </tr>
               </thead>
@@ -224,6 +307,15 @@ export function ComputersPage() {
                         </span>
                       ) : (
                         <span className="text-gray-400 dark:text-gray-500">Not scanned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {computer.configTag ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-400">
+                          {computer.configTag}
+                        </span>
+                      ) : (
+                        '-'
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">

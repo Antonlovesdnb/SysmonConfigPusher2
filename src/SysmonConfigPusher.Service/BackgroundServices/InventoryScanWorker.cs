@@ -10,7 +10,8 @@ public class InventoryScanWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<InventoryScanWorker> _logger;
 
-    private const int ScanParallelism = 10;
+    // WMI connections are expensive - keep parallelism reasonable
+    private const int ScanParallelism = 5;
 
     public InventoryScanWorker(
         IInventoryScanQueue queue,
@@ -77,19 +78,22 @@ public class InventoryScanWorker : BackgroundService
                 {
                     var sysmonPath = await remoteExec.GetSysmonPathAsync(computer.Hostname, ct);
                     string? sysmonVersion = null;
+                    string? configHash = null;
 
                     if (!string.IsNullOrEmpty(sysmonPath))
                     {
                         sysmonVersion = await remoteExec.GetSysmonVersionAsync(computer.Hostname, ct);
+                        configHash = await remoteExec.GetSysmonConfigHashAsync(computer.Hostname, ct);
                     }
 
                     computer.SysmonPath = sysmonPath;
                     computer.SysmonVersion = sysmonVersion;
+                    computer.ConfigHash = configHash;
                     computer.LastInventoryScan = DateTime.UtcNow;
 
                     Interlocked.Increment(ref succeeded);
-                    _logger.LogDebug("Scanned {Hostname}: Path={Path}, Version={Version}",
-                        computer.Hostname, sysmonPath ?? "(not installed)", sysmonVersion ?? "N/A");
+                    _logger.LogDebug("Scanned {Hostname}: Path={Path}, Version={Version}, ConfigHash={Hash}",
+                        computer.Hostname, sysmonPath ?? "(not installed)", sysmonVersion ?? "N/A", configHash ?? "N/A");
                 }
                 catch (Exception ex)
                 {

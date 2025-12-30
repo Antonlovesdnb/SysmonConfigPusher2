@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SysmonConfigPusher.Core.Interfaces;
@@ -12,6 +13,7 @@ namespace SysmonConfigPusher.Service.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
     private readonly IAuditService _auditService;
     private readonly ISysmonBinaryCacheService _binaryCacheService;
     private readonly IHostApplicationLifetime _appLifetime;
@@ -19,12 +21,14 @@ public class SettingsController : ControllerBase
 
     public SettingsController(
         IWebHostEnvironment env,
+        IConfiguration configuration,
         IAuditService auditService,
         ISysmonBinaryCacheService binaryCacheService,
         IHostApplicationLifetime appLifetime,
         ILogger<SettingsController> logger)
     {
         _env = env;
+        _configuration = configuration;
         _auditService = auditService;
         _binaryCacheService = binaryCacheService;
         _appLifetime = appLifetime;
@@ -194,6 +198,133 @@ public class SettingsController : ControllerBase
     }
 
     /// <summary>
+    /// Get TLS certificate status.
+    /// </summary>
+    [HttpGet("tls-status")]
+    [Authorize(Policy = "RequireViewer")]
+    public ActionResult<TlsCertificateStatusDto> GetTlsStatus()
+    {
+        try
+        {
+            var result = new TlsCertificateStatusDto();
+
+            // Check Kestrel configuration for certificate settings
+            var certPath = _configuration["Kestrel:Endpoints:Https:Certificate:Path"];
+            var certSubject = _configuration["Kestrel:Endpoints:Https:Certificate:Subject"];
+            var certStore = _configuration["Kestrel:Endpoints:Https:Certificate:Store"];
+            var certLocation = _configuration["Kestrel:Endpoints:Https:Certificate:Location"];
+
+            if (!string.IsNullOrEmpty(certPath))
+            {
+                // PFX file certificate
+                result.ConfigurationType = "PFX File";
+                result.ConfiguredPath = certPath;
+
+                if (System.IO.File.Exists(certPath))
+                {
+                    try
+                    {
+                        var certPassword = _configuration["Kestrel:Endpoints:Https:Certificate:Password"];
+                        var cert = new X509Certificate2(certPath, certPassword);
+                        PopulateCertificateDetails(result, cert);
+                        cert.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        result.ErrorMessage = $"Could not read certificate: {ex.Message}";
+                    }
+                }
+                else
+                {
+                    result.ErrorMessage = "Certificate file not found";
+                }
+            }
+            else if (!string.IsNullOrEmpty(certSubject))
+            {
+                // Windows Certificate Store
+                result.ConfigurationType = "Windows Certificate Store";
+                result.ConfiguredPath = $"{certLocation}/{certStore}/{certSubject}";
+
+                try
+                {
+                    var storeLocation = certLocation?.ToLower() == "currentuser"
+                        ? StoreLocation.CurrentUser
+                        : StoreLocation.LocalMachine;
+                    var storeName = certStore ?? "My";
+
+                    using var store = new X509Store(storeName, storeLocation);
+                    store.Open(OpenFlags.ReadOnly);
+                    var certs = store.Certificates.Find(X509FindType.FindBySubjectDistinguishedName, certSubject, false);
+
+                    if (certs.Count == 0)
+                    {
+                        // Try partial match
+                        certs = store.Certificates.Find(X509FindType.FindBySubjectName, certSubject.Replace("CN=", ""), false);
+                    }
+
+                    if (certs.Count > 0)
+                    {
+                        PopulateCertificateDetails(result, certs[0]);
+                    }
+                    else
+                    {
+                        result.ErrorMessage = "Certificate not found in store";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.ErrorMessage = $"Could not access certificate store: {ex.Message}";
+                }
+            }
+            else
+            {
+                // Development certificate or default
+                result.ConfigurationType = "Development Certificate";
+                result.IsDevelopmentCertificate = true;
+
+                // Try to find the dev cert
+                try
+                {
+                    using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+                    store.Open(OpenFlags.ReadOnly);
+                    var devCerts = store.Certificates
+                        .Find(X509FindType.FindBySubjectName, "localhost", false)
+                        .Where(c => c.Issuer.Contains("ASP.NET Core") || c.FriendlyName.Contains("ASP.NET"))
+                        .OrderByDescending(c => c.NotAfter)
+                        .ToList();
+
+                    if (devCerts.Count > 0)
+                    {
+                        PopulateCertificateDetails(result, devCerts[0]);
+                    }
+                }
+                catch
+                {
+                    // Ignore errors reading dev cert
+                }
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get TLS certificate status");
+            return StatusCode(500, new { message = "Failed to get TLS status" });
+        }
+    }
+
+    private static void PopulateCertificateDetails(TlsCertificateStatusDto result, X509Certificate2 cert)
+    {
+        result.Subject = cert.Subject;
+        result.Issuer = cert.Issuer;
+        result.Thumbprint = cert.Thumbprint;
+        result.NotBefore = cert.NotBefore;
+        result.NotAfter = cert.NotAfter;
+        result.IsValid = DateTime.Now >= cert.NotBefore && DateTime.Now <= cert.NotAfter;
+        result.DaysUntilExpiry = (int)(cert.NotAfter - DateTime.Now).TotalDays;
+    }
+
+    /// <summary>
     /// Restart the application to apply settings changes.
     /// </summary>
     [HttpPost("restart")]
@@ -273,4 +404,19 @@ public class RestartResultDto
 {
     public bool Success { get; set; }
     public string Message { get; set; } = "";
+}
+
+public class TlsCertificateStatusDto
+{
+    public string ConfigurationType { get; set; } = "Unknown";
+    public string? ConfiguredPath { get; set; }
+    public bool IsDevelopmentCertificate { get; set; }
+    public string? Subject { get; set; }
+    public string? Issuer { get; set; }
+    public string? Thumbprint { get; set; }
+    public DateTime? NotBefore { get; set; }
+    public DateTime? NotAfter { get; set; }
+    public bool IsValid { get; set; }
+    public int? DaysUntilExpiry { get; set; }
+    public string? ErrorMessage { get; set; }
 }

@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SysmonConfigPusher.Core.Configuration;
@@ -20,7 +21,8 @@ public class AuditService : IAuditService
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public AuditService(

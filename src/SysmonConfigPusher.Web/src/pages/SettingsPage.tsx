@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { settingsApi, type BinaryCacheStatus } from '../api';
+import { settingsApi, type BinaryCacheStatus, type TlsCertificateStatus } from '../api';
 import type { AppSettings } from '../types';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,6 +16,9 @@ export function SettingsPage() {
   const [downloadingBinary, setDownloadingBinary] = useState(false);
   const [binaryCacheMessage, setBinaryCacheMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // TLS certificate state
+  const [tlsStatus, setTlsStatus] = useState<TlsCertificateStatus | null>(null);
+
   // Restart state
   const [restarting, setRestarting] = useState(false);
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
@@ -23,6 +26,7 @@ export function SettingsPage() {
   useEffect(() => {
     loadSettings();
     loadBinaryCacheStatus();
+    loadTlsStatus();
   }, []);
 
   const loadSettings = async () => {
@@ -44,6 +48,15 @@ export function SettingsPage() {
       setBinaryCache(status);
     } catch (err) {
       console.error('Failed to load binary cache status:', err);
+    }
+  };
+
+  const loadTlsStatus = async () => {
+    try {
+      const status = await settingsApi.getTlsStatus();
+      setTlsStatus(status);
+    } catch (err) {
+      console.error('Failed to load TLS status:', err);
     }
   };
 
@@ -586,6 +599,101 @@ export function SettingsPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* TLS Certificate Section */}
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+            TLS Certificate
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            HTTPS certificate status. Configure certificates in appsettings.json.
+          </p>
+
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+            {tlsStatus ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    tlsStatus.isDevelopmentCertificate
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : tlsStatus.isValid
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {tlsStatus.isDevelopmentCertificate ? 'Development' : tlsStatus.isValid ? 'Valid' : 'Invalid'}
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {tlsStatus.configurationType}
+                  </span>
+                </div>
+
+                {tlsStatus.errorMessage ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">{tlsStatus.errorMessage}</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {tlsStatus.subject && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Subject:</span>
+                        <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {tlsStatus.subject}
+                        </span>
+                      </div>
+                    )}
+                    {tlsStatus.issuer && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Issuer:</span>
+                        <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {tlsStatus.issuer}
+                        </span>
+                      </div>
+                    )}
+                    {tlsStatus.notAfter && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Expires:</span>
+                        <span className={`ml-2 font-medium ${
+                          tlsStatus.daysUntilExpiry !== null && tlsStatus.daysUntilExpiry < 30
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          {new Date(tlsStatus.notAfter).toLocaleDateString()}
+                          {tlsStatus.daysUntilExpiry !== null && (
+                            <span className="text-xs ml-1">
+                              ({tlsStatus.daysUntilExpiry} days)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {tlsStatus.thumbprint && (
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Thumbprint:</span>
+                        <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                          {tlsStatus.thumbprint.substring(0, 20)}...
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {tlsStatus.isDevelopmentCertificate && (
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
+                    Using ASP.NET Core development certificate. Configure a production certificate in appsettings.json for deployment.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading TLS status...</p>
+            )}
           </div>
         </div>
       </div>

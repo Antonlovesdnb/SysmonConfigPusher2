@@ -38,8 +38,22 @@ export const computersApi = {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
     if (groupId) params.set('groupId', groupId.toString());
+    // Request all computers (up to 2000) for backward compatibility
+    params.set('take', '2000');
     const query = params.toString();
-    const response = await fetchWithAuth(`/api/computers${query ? `?${query}` : ''}`);
+    const response = await fetchWithAuth(`/api/computers?${query}`);
+    if (!response.ok) throw new Error(`Failed to fetch computers: ${response.status}`);
+    const data = await response.json();
+    // API now returns { items, totalCount, skip, take } - extract items for compatibility
+    return data.items ?? data;
+  },
+
+  async listPaged(skip: number = 0, take: number = 100, search?: string): Promise<{ items: Computer[]; totalCount: number }> {
+    const params = new URLSearchParams();
+    params.set('skip', skip.toString());
+    params.set('take', take.toString());
+    if (search) params.set('search', search);
+    const response = await fetchWithAuth(`/api/computers?${params.toString()}`);
     if (!response.ok) throw new Error(`Failed to fetch computers: ${response.status}`);
     return response.json();
   },
@@ -185,6 +199,12 @@ export const deploymentsApi = {
     const response = await fetchWithAuth(`/api/deployments/${id}`, { method: 'DELETE' });
     if (!response.ok) throw new Error(`Failed to cancel deployment: ${response.status}`);
   },
+
+  async purge(olderThanDays: number = 30): Promise<{ jobsDeleted: number; resultsDeleted: number; message: string }> {
+    const response = await fetchWithAuth(`/api/deployments?olderThanDays=${olderThanDays}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to purge history: ${response.status}`);
+    return response.json();
+  },
 };
 
 // Health check
@@ -305,6 +325,12 @@ export const settingsApi = {
     return response.json();
   },
 
+  async getTlsStatus(): Promise<TlsCertificateStatus> {
+    const response = await fetchWithAuth('/api/settings/tls-status');
+    if (!response.ok) throw new Error(`Failed to get TLS status: ${response.status}`);
+    return response.json();
+  },
+
   async updateBinaryCache(): Promise<BinaryCacheUpdateResult> {
     const response = await fetchWithAuth('/api/settings/binary-cache/update', { method: 'POST' });
     if (!response.ok) throw new Error(`Failed to update binary cache: ${response.status}`);
@@ -324,6 +350,20 @@ export interface BinaryCacheStatus {
   version: string | null;
   fileSizeBytes: number | null;
   cachedAt: string | null;
+}
+
+export interface TlsCertificateStatus {
+  configurationType: string;
+  configuredPath: string | null;
+  isDevelopmentCertificate: boolean;
+  subject: string | null;
+  issuer: string | null;
+  thumbprint: string | null;
+  notBefore: string | null;
+  notAfter: string | null;
+  isValid: boolean;
+  daysUntilExpiry: number | null;
+  errorMessage: string | null;
 }
 
 export interface BinaryCacheUpdateResult {
