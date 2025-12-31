@@ -44,6 +44,7 @@ See the [Development Guide](docs/DEVELOPMENT.md) for building and running locall
 | Guide | Description |
 |-------|-------------|
 | [Installation Guide](docs/INSTALLATION.md) | Production deployment and configuration |
+| [Usage Guide](docs/USAGE.md) | How to use the application |
 | [Development Guide](docs/DEVELOPMENT.md) | Building from source, running locally |
 
 ## Requirements
