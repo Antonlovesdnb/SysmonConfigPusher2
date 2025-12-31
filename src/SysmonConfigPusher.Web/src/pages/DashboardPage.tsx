@@ -98,7 +98,7 @@ export function DashboardPage() {
         {/* Computers Card */}
         <Link
           to="/inventory"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          className="glass-card rounded-lg p-6 transition-all"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -126,7 +126,7 @@ export function DashboardPage() {
         {/* Configs Card */}
         <Link
           to="/configs"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          className="glass-card rounded-lg p-6 transition-all"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -149,7 +149,7 @@ export function DashboardPage() {
         {/* Deployments Card */}
         <Link
           to="/deployments"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          className="glass-card rounded-lg p-6 transition-all"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -177,7 +177,7 @@ export function DashboardPage() {
         {/* Noise Analysis Card */}
         <Link
           to="/analysis"
-          className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          className="glass-card rounded-lg p-6 transition-all"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -201,8 +201,8 @@ export function DashboardPage() {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Deployments */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="glass-card rounded-lg">
+          <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 flex justify-between items-center">
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">Recent Deployments</h2>
             <Link to="/deployments" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
               View all
@@ -213,12 +213,12 @@ export function DashboardPage() {
               No deployments yet
             </div>
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
               {stats.recentDeployments.map((deployment) => (
                 <Link
                   key={deployment.id}
                   to={`/deployments/${deployment.id}`}
-                  className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="p-4 flex items-center justify-between hover:bg-white/50 dark:hover:bg-gray-800/50"
                 >
                   <div>
                     <div className="font-medium text-gray-900 dark:text-gray-100">
@@ -238,8 +238,8 @@ export function DashboardPage() {
         </div>
 
         {/* Sysmon Version Distribution */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="glass-card rounded-lg">
+          <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50">
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">Sysmon Versions</h2>
           </div>
           {stats.sysmonVersions.length === 0 ? (
@@ -278,14 +278,14 @@ export function DashboardPage() {
 
       {/* Recent Noise Analyses */}
       {stats.recentNoiseAnalyses.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        <div className="glass-card rounded-lg">
+          <div className="p-4 border-b border-gray-200/50 dark:border-gray-700/50 flex justify-between items-center">
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">Recent Noise Analyses</h2>
             <Link to="/analysis" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
               View all
             </Link>
           </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
             {stats.recentNoiseAnalyses.map((analysis) => (
               <div
                 key={analysis.id}
@@ -314,7 +314,7 @@ export function DashboardPage() {
       )}
 
       {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <Link

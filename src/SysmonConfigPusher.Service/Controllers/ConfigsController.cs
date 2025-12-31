@@ -391,18 +391,61 @@ public partial class ConfigsController : ControllerBase
 
     /// <summary>
     /// Add an exclusion rule to a config.
+    /// Optionally creates a new config as a copy of the source config.
     /// </summary>
     [HttpPost("{id}/exclusions")]
     [Authorize(Policy = "RequireOperator")]
     public async Task<ActionResult<AddExclusionResponse>> AddExclusion(int id, [FromBody] AddExclusionRequest request)
     {
-        var config = await _db.Configs.FindAsync(id);
-        if (config == null)
+        var sourceConfig = await _db.Configs.FindAsync(id);
+        if (sourceConfig == null)
             return NotFound();
 
         try
         {
-            var doc = XDocument.Parse(config.Content);
+            Config targetConfig;
+            string actionDescription;
+
+            // If creating a new config, clone the source first
+            if (request.CreateNewConfig)
+            {
+                var newFilename = request.NewConfigName;
+                if (string.IsNullOrWhiteSpace(newFilename))
+                {
+                    // Generate a name based on source config
+                    var baseName = Path.GetFileNameWithoutExtension(sourceConfig.Filename);
+                    var ext = Path.GetExtension(sourceConfig.Filename);
+                    newFilename = $"{baseName}_copy_{DateTime.UtcNow:yyyyMMdd_HHmmss}{ext}";
+                }
+                else if (!newFilename.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                {
+                    newFilename += ".xml";
+                }
+
+                targetConfig = new Config
+                {
+                    Filename = newFilename,
+                    Tag = sourceConfig.Tag,
+                    Content = sourceConfig.Content,
+                    Hash = sourceConfig.Hash,
+                    UploadedBy = User.Identity?.Name,
+                    UploadedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    IsValid = sourceConfig.IsValid,
+                    ValidationMessage = sourceConfig.ValidationMessage,
+                    SourceUrl = null
+                };
+                _db.Configs.Add(targetConfig);
+                await _db.SaveChangesAsync(); // Save to get the ID
+                actionDescription = $"Created from copy of '{sourceConfig.Filename}' and added exclusion";
+            }
+            else
+            {
+                targetConfig = sourceConfig;
+                actionDescription = "Added exclusion";
+            }
+
+            var doc = XDocument.Parse(targetConfig.Content);
             var sysmon = doc.Root;
             if (sysmon == null || sysmon.Name.LocalName != "Sysmon")
             {
@@ -474,35 +517,46 @@ public partial class ConfigsController : ControllerBase
                 }
             }
 
-            // Add the exclusion rule
-            var exclusionElement = new XElement(request.FieldName,
-                new XAttribute("condition", request.Condition ?? "is"),
-                request.Value);
-
-            // Check for duplicate
+            // Check for duplicate before adding
             var existingRule = eventElement.Elements(request.FieldName)
                 .FirstOrDefault(e => e.Value == request.Value &&
                     (e.Attribute("condition")?.Value ?? "is") == (request.Condition ?? "is"));
 
             if (existingRule != null)
             {
-                return Ok(new AddExclusionResponse(true, config.Content, "Exclusion rule already exists"));
+                return Ok(new AddExclusionResponse(true, targetConfig.Content, "Exclusion rule already exists", targetConfig.Id, targetConfig.Filename));
             }
 
+            // Create audit comment
+            var username = User.Identity?.Name ?? "Unknown";
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss UTC");
+            var auditComment = new XComment($" Added by {username} on {timestamp} via Noise Analysis ");
+
+            // Add the exclusion rule with audit comment
+            var exclusionElement = new XElement(request.FieldName,
+                new XAttribute("condition", request.Condition ?? "is"),
+                request.Value);
+
+            eventElement.Add(auditComment);
             eventElement.Add(exclusionElement);
 
             // Update the config
             var newContent = doc.ToString(SaveOptions.None);
             var newHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(newContent)));
 
-            config.Content = newContent;
-            config.Hash = newHash;
+            targetConfig.Content = newContent;
+            targetConfig.Hash = newHash;
             await _db.SaveChangesAsync();
 
-            _logger.LogInformation("User {User} added exclusion to config {Id}: {EventFilter}.{Field} {Condition} '{Value}'",
-                User.Identity?.Name, id, eventFilterName, request.FieldName, request.Condition ?? "is", request.Value);
+            _logger.LogInformation("User {User} {Action} config {Id} ({Filename}): {EventFilter}.{Field} {Condition} '{Value}'",
+                User.Identity?.Name, actionDescription, targetConfig.Id, targetConfig.Filename, eventFilterName, request.FieldName, request.Condition ?? "is", request.Value);
 
-            return Ok(new AddExclusionResponse(true, newContent, null));
+            await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpdate,
+                new { ConfigId = targetConfig.Id, Filename = targetConfig.Filename, Action = actionDescription,
+                      EventFilter = eventFilterName, Field = request.FieldName, Condition = request.Condition ?? "is", Value = request.Value,
+                      SourceConfigId = request.CreateNewConfig ? id : (int?)null });
+
+            return Ok(new AddExclusionResponse(true, newContent, request.CreateNewConfig ? $"Created new config '{targetConfig.Filename}'" : null, targetConfig.Id, targetConfig.Filename));
         }
         catch (Exception ex)
         {
@@ -589,12 +643,16 @@ public record AddExclusionRequest(
     int EventId,
     string FieldName,
     string Value,
-    string? Condition = "is");
+    string? Condition = "is",
+    bool CreateNewConfig = false,
+    string? NewConfigName = null);
 
 public record AddExclusionResponse(
     bool Success,
     string? UpdatedContent,
-    string? Message);
+    string? Message,
+    int? ConfigId = null,
+    string? ConfigFilename = null);
 
 public record UpdateConfigRequest(
     string Content);

@@ -103,9 +103,9 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
                 var scope = CreateManagementScope(hostname, @"root\cimv2");
                 scope.Connect();
 
-                // Query for Sysmon service
+                // Query for Sysmon service - use LIKE for case-insensitive matching
                 using var searcher = new ManagementObjectSearcher(scope,
-                    new ObjectQuery("SELECT PathName FROM Win32_Service WHERE Name = 'Sysmon' OR Name = 'Sysmon64'"));
+                    new ObjectQuery("SELECT Name, PathName FROM Win32_Service WHERE Name LIKE 'Sysmon%' OR PathName LIKE '%Sysmon%.exe%'"));
 
                 using var results = searcher.Get();
 
@@ -116,7 +116,8 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
                     {
                         // Extract the executable path and query its version
                         var exePath = ExtractExePath(pathName);
-                        if (!string.IsNullOrEmpty(exePath))
+                        if (!string.IsNullOrEmpty(exePath) &&
+                            exePath.Contains("sysmon", StringComparison.OrdinalIgnoreCase))
                         {
                             return QueryFileVersion(scope, exePath);
                         }
@@ -127,7 +128,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to get Sysmon version from {Hostname}", hostname);
+                _logger.LogWarning(ex, "Failed to get Sysmon version from {Hostname}", hostname);
                 return null;
             }
         }, cancellationToken);
@@ -184,19 +185,26 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
                 var scope = CreateManagementScope(hostname, @"root\cimv2");
                 scope.Connect();
 
-                // Query for Sysmon or Sysmon64 service
+                // Query for Sysmon service - use LIKE for case-insensitive matching
+                // Also check for custom service names by looking for Sysmon in the PathName
                 using var searcher = new ManagementObjectSearcher(scope,
-                    new ObjectQuery("SELECT PathName FROM Win32_Service WHERE Name = 'Sysmon' OR Name = 'Sysmon64'"));
+                    new ObjectQuery("SELECT Name, PathName FROM Win32_Service WHERE Name LIKE 'Sysmon%' OR PathName LIKE '%Sysmon%.exe%'"));
 
                 using var results = searcher.Get();
 
                 foreach (ManagementObject service in results)
                 {
+                    var serviceName = service["Name"]?.ToString();
                     var pathName = service["PathName"]?.ToString();
+
+                    _logger.LogDebug("Found potential Sysmon service on {Hostname}: Name={ServiceName}, Path={PathName}",
+                        hostname, serviceName, pathName);
+
                     if (!string.IsNullOrEmpty(pathName))
                     {
                         var exePath = ExtractExePath(pathName);
-                        if (!string.IsNullOrEmpty(exePath))
+                        if (!string.IsNullOrEmpty(exePath) &&
+                            exePath.Contains("sysmon", StringComparison.OrdinalIgnoreCase))
                         {
                             _logger.LogDebug("Found Sysmon at {Path} on {Hostname}", exePath, hostname);
                             return exePath;
@@ -209,7 +217,7 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to get Sysmon path from {Hostname}", hostname);
+                _logger.LogWarning(ex, "Failed to get Sysmon path from {Hostname}", hostname);
                 return null;
             }
         }, cancellationToken);

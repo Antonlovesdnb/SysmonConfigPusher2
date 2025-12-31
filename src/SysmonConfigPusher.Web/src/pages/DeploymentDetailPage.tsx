@@ -106,7 +106,7 @@ export function DeploymentDetailPage() {
 
   if (loading && !job) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
@@ -114,7 +114,7 @@ export function DeploymentDetailPage() {
 
   if (error && !job) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="p-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
         <div className="mt-4">
           <Link to="/deployments" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-300">
@@ -137,7 +137,7 @@ export function DeploymentDetailPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
             <div className="flex items-center gap-3">
@@ -248,10 +248,10 @@ export function DeploymentDetailPage() {
       </div>
 
       {/* Results table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Results</h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -268,7 +268,7 @@ export function DeploymentDetailPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200/50 dark:divide-gray-700/50">
               {results.map((result) => {
                 const isPending = !result.completedAt || result.message === 'Pending';
                 const isRunning = progress.some(

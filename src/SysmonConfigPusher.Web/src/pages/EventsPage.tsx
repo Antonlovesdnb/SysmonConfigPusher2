@@ -174,7 +174,7 @@ export function EventsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Sysmon Event Viewer</h2>
 
         {/* Computer Selection */}
@@ -213,7 +213,7 @@ export function EventsPage() {
           ) : (
             <div className="border dark:border-gray-600 rounded-lg overflow-hidden">
               <div className="max-h-64 overflow-y-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
                   <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                     <tr>
                       <th className="px-4 py-2 text-left w-10">
@@ -230,7 +230,7 @@ export function EventsPage() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sysmon</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200/50 dark:divide-gray-700/50">
                     {filteredComputers.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
@@ -373,12 +373,12 @@ export function EventsPage() {
 
       {/* Results */}
       {events.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="glass-card rounded-lg">
           <div className="p-4 border-b dark:border-gray-700">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Results ({events.length} events)</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Time</th>
@@ -387,7 +387,7 @@ export function EventsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {events.map((event, index) => (
                   <tr
                     key={`${event.computerId}-${event.timeCreated}-${index}`}
@@ -423,7 +423,7 @@ export function EventsPage() {
       {/* Event Detail Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col m-4">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{selectedEvent.eventType}</h3>

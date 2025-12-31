@@ -198,6 +198,92 @@ public class SettingsController : ControllerBase
     }
 
     /// <summary>
+    /// Get all cached Sysmon binary versions.
+    /// </summary>
+    [HttpGet("binary-cache/versions")]
+    [Authorize(Policy = "RequireViewer")]
+    public ActionResult<IEnumerable<BinaryCacheStatusDto>> GetAllCachedVersions()
+    {
+        var versions = _binaryCacheService.GetAllCachedVersions();
+        return Ok(versions.Select(v => new BinaryCacheStatusDto
+        {
+            IsCached = true,
+            FilePath = v.FilePath,
+            Version = v.Version,
+            FileSizeBytes = v.FileSizeBytes,
+            CachedAt = v.CachedAt
+        }));
+    }
+
+    /// <summary>
+    /// Upload a Sysmon binary from file.
+    /// </summary>
+    [HttpPost("binary-cache/upload")]
+    [RequestSizeLimit(50 * 1024 * 1024)] // 50MB limit
+    public async Task<ActionResult<BinaryCacheUpdateResultDto>> UploadBinary(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "No file provided" });
+
+        if (!file.FileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "File must be an .exe file" });
+
+        _logger.LogInformation("User {User} uploading Sysmon binary: {Filename}", User.Identity?.Name, file.FileName);
+
+        await using var stream = file.OpenReadStream();
+        var result = await _binaryCacheService.AddFromFileAsync(stream, file.FileName, cancellationToken);
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.BinaryCacheUpdate, new
+        {
+            Action = "Upload",
+            Filename = file.FileName,
+            Success = result.Success,
+            Message = result.Message,
+            Version = result.CacheInfo?.Version,
+            FileSizeBytes = result.CacheInfo?.FileSizeBytes
+        });
+
+        if (!result.Success)
+            return BadRequest(new BinaryCacheUpdateResultDto
+            {
+                Success = false,
+                Message = result.Message ?? "Failed to add binary"
+            });
+
+        return Ok(new BinaryCacheUpdateResultDto
+        {
+            Success = result.Success,
+            Message = result.Message ?? "Binary uploaded successfully",
+            Version = result.CacheInfo?.Version,
+            FileSizeBytes = result.CacheInfo?.FileSizeBytes,
+            CachedAt = result.CacheInfo?.CachedAt
+        });
+    }
+
+    /// <summary>
+    /// Delete a specific cached Sysmon version.
+    /// </summary>
+    [HttpDelete("binary-cache/versions/{version}")]
+    public async Task<ActionResult> DeleteCachedVersion(string version)
+    {
+        _logger.LogInformation("User {User} deleting cached Sysmon version: {Version}", User.Identity?.Name, version);
+
+        var result = _binaryCacheService.DeleteCachedVersion(version);
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.BinaryCacheUpdate, new
+        {
+            Action = "Delete",
+            Version = version,
+            Success = result
+        });
+
+        if (!result)
+            return NotFound(new { message = $"Version {version} not found in cache" });
+
+        return Ok(new { message = $"Version {version} deleted successfully" });
+    }
+
+    /// <summary>
     /// Get TLS certificate status.
     /// </summary>
     [HttpGet("tls-status")]

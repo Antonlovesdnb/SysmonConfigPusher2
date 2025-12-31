@@ -317,7 +317,7 @@ export function ConfigsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors">
+      <div className="glass-card rounded-lg p-6 transition-all">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Sysmon Configurations</h2>
           <div className="flex gap-2">
@@ -439,7 +439,7 @@ export function ConfigsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {configs.map((config) => (
                   <tr key={config.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -537,7 +537,7 @@ export function ConfigsPage() {
       {/* Config Viewer Modal */}
       {viewerOpen && selectedConfig && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
+          <div className="glass-panel rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-semibold dark:text-gray-100">{selectedConfig.filename}</h3>
@@ -615,7 +615,7 @@ export function ConfigsPage() {
       {/* Config Editor Modal */}
       {editorOpen && selectedConfig && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
+          <div className="glass-panel rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-semibold dark:text-gray-100">
@@ -733,7 +733,7 @@ export function ConfigsPage() {
       {/* Upload Results Modal */}
       {uploadResultsOpen && uploadProgress && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-lg w-full m-4">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-semibold dark:text-gray-100">Upload Results</h3>
               <button
@@ -801,7 +801,7 @@ export function ConfigsPage() {
       {/* Config Diff Modal */}
       {diffOpen && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
+          <div className="glass-panel rounded-lg shadow-xl flex flex-col m-4" style={{ width: 'calc(100vw - 64px)', height: 'calc(100vh - 64px)' }}>
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-semibold dark:text-gray-100">Compare Configurations</h3>
               <button
@@ -950,7 +950,7 @@ export function ConfigsPage() {
       {/* URL Import Modal */}
       {urlImportOpen && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-lg w-full m-4">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-semibold dark:text-gray-100">Import Config from URL</h3>
               <button
@@ -1026,7 +1026,7 @@ export function ConfigsPage() {
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[60]">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-md w-full m-4">
             <div className="p-6">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
@@ -1063,7 +1063,7 @@ export function ConfigsPage() {
       {/* Discard Changes Confirmation Modal */}
       {discardChangesTarget && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-[60]">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-md w-full m-4">
             <div className="p-6">
               <div className="flex items-center gap-4">
                 <div className="flex-shrink-0 w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">

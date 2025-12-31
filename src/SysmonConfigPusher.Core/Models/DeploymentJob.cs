@@ -6,6 +6,11 @@ public class DeploymentJob
     public required string Operation { get; set; }
     public int? ConfigId { get; set; }
     public Config? Config { get; set; }
+    /// <summary>
+    /// The Sysmon binary version to use for install operations.
+    /// If null, uses the latest cached version.
+    /// </summary>
+    public string? SysmonVersion { get; set; }
     public string? StartedBy { get; set; }
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAt { get; set; }

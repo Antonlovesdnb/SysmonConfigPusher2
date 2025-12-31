@@ -30,9 +30,10 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
                 using var searcher = new DirectorySearcher(entry)
                 {
+                    // Use objectCategory=computer to exclude service accounts (gMSA, etc.)
                     Filter = string.IsNullOrWhiteSpace(filter)
-                        ? "(objectClass=computer)"
-                        : $"(&(objectClass=computer){filter})",
+                        ? "(objectCategory=computer)"
+                        : $"(&(objectCategory=computer){filter})",
                     PageSize = 500,
                     SizeLimit = 0 // No limit
                 };
@@ -83,7 +84,7 @@ public class ActiveDirectoryService : IActiveDirectoryService
                 using var entry = new DirectoryEntry();
                 using var searcher = new DirectorySearcher(entry)
                 {
-                    Filter = $"(&(objectClass=computer)(cn={EscapeLdapFilter(hostname)}))"
+                    Filter = $"(&(objectCategory=computer)(cn={EscapeLdapFilter(hostname)}))"
                 };
 
                 searcher.PropertiesToLoad.AddRange([

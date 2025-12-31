@@ -94,6 +94,7 @@ public class DeploymentsController : ControllerBase
         {
             Operation = request.Operation,
             ConfigId = request.ConfigId,
+            SysmonVersion = request.SysmonVersion,
             StartedBy = User.Identity?.Name,
             Status = "Pending"
         };
@@ -117,7 +118,7 @@ public class DeploymentsController : ControllerBase
         await _db.SaveChangesAsync();
 
         await _auditService.LogAsync(User.Identity?.Name, AuditAction.DeploymentStart,
-            new { JobId = job.Id, Operation = request.Operation, ComputerCount = request.ComputerIds.Length, ConfigId = request.ConfigId });
+            new { JobId = job.Id, Operation = request.Operation, ComputerCount = request.ComputerIds.Length, ConfigId = request.ConfigId, SysmonVersion = request.SysmonVersion });
 
         _logger.LogInformation("User {User} started deployment job {JobId} ({Operation}) on {Count} computers",
             User.Identity?.Name, job.Id, request.Operation, request.ComputerIds.Length);
@@ -347,7 +348,8 @@ public record DeploymentResultDto(
 public record StartDeploymentRequest(
     string Operation,
     int? ConfigId,
-    int[] ComputerIds);
+    int[] ComputerIds,
+    string? SysmonVersion = null);
 
 public record PurgeResultDto(
     int JobsDeleted,

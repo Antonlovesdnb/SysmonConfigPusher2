@@ -14,6 +14,11 @@ public class Computer
     public DateTime? LastDeployment { get; set; }
     public DateTime? LastInventoryScan { get; set; }
 
+    /// <summary>
+    /// Status of the last inventory scan: "Online", "Offline", or null if never scanned
+    /// </summary>
+    public string? LastScanStatus { get; set; }
+
     public ICollection<ComputerGroupMember> GroupMemberships { get; set; } = [];
     public ICollection<DeploymentResult> DeploymentResults { get; set; } = [];
 }

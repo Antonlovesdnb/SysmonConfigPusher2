@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using SysmonConfigPusher.Core.Configuration;
 using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Data;
@@ -13,12 +14,53 @@ using SysmonConfigPusher.Infrastructure.Smb;
 using SysmonConfigPusher.Infrastructure.EventLog;
 using SysmonConfigPusher.Infrastructure.NoiseAnalysis;
 using SysmonConfigPusher.Infrastructure.BinaryCache;
+using SysmonConfigPusher.Service;
 using SysmonConfigPusher.Service.Authorization;
 using SysmonConfigPusher.Service.BackgroundServices;
+using SysmonConfigPusher.Service.Middleware;
 using SysmonConfigPusher.Service.Services;
 using System.Text.Json;
 
+// Ensure self-signed certificate exists for HTTPS
+CertificateHelper.EnsureCertificateExists();
+
+// Configure Serilog - read log directory from configuration
+var tempConfig = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true)
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .Build();
+
+var logDirectory = tempConfig["SysmonConfigPusher:LogDirectory"];
+if (string.IsNullOrEmpty(logDirectory))
+{
+    logDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "SysmonConfigPusher", "logs");
+}
+Directory.CreateDirectory(logDirectory);
+var logPath = Path.Combine(logDirectory, "sysmonpusher-.log");
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", Serilog.Events.LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(logPath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        fileSizeLimitBytes: 50 * 1024 * 1024, // 50MB per file
+        rollOnFileSizeLimit: true,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+try
+{
+    Log.Information("Starting SysmonConfigPusher service");
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 // Configure as Windows Service
 builder.Host.UseWindowsService(options =>
@@ -105,11 +147,12 @@ var dbPath = Path.Combine(dataPath, "sysmon.db");
 builder.Services.AddDbContext<SysmonDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
-// Windows Authentication (can be disabled for local development testing)
+// Windows Authentication (DevAuth only allowed in Development environment)
 var disableAuth = builder.Configuration.GetValue<bool>("DisableAuth");
-if (disableAuth)
+if (disableAuth && builder.Environment.IsDevelopment())
 {
-    // Development mode: use a simple pass-through auth with all roles
+    // Development mode ONLY: use a simple pass-through auth with all roles
+    // This is intentionally restricted to Development environment for security
     builder.Services.AddAuthentication("DevAuth")
         .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("DevAuth", null);
 }
@@ -172,18 +215,23 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure pipeline
+app.UseGlobalExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseCors();
 }
 
-// Swagger UI (available in all environments for ops visibility)
-app.UseSwagger();
-app.UseSwaggerUI(options =>
+// Swagger UI (development only for security)
+if (app.Environment.IsDevelopment())
 {
-    options.SwaggerEndpoint("/swagger/v1/swagger.json", "SysmonConfigPusher API v1");
-    options.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "SysmonConfigPusher API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
@@ -231,6 +279,15 @@ app.MapHub<SysmonConfigPusher.Service.Hubs.DeploymentHub>("/hubs/deployment");
 app.MapFallbackToFile("index.html");
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Development authentication handler that allows all requests with full Admin access
 public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>

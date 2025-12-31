@@ -26,4 +26,9 @@ public class SysmonConfigPusherSettings
     /// Path to the JSON audit log file. If empty, JSON file logging is disabled.
     /// </summary>
     public string AuditLogPath { get; set; } = "";
+
+    /// <summary>
+    /// Directory for application log files. Defaults to %ProgramData%\SysmonConfigPusher\logs.
+    /// </summary>
+    public string LogDirectory { get; set; } = "";
 }

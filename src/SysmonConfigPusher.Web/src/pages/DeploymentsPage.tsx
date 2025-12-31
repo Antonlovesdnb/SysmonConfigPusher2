@@ -72,7 +72,7 @@ export function DeploymentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Deployment History</h2>
           <div className="flex gap-2">
@@ -104,7 +104,7 @@ export function DeploymentsPage() {
         {/* Purge Confirmation Dialog */}
         {showPurgeConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="glass-panel rounded-lg shadow-xl p-6 max-w-md mx-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Purge Deployment History
               </h3>
@@ -160,7 +160,7 @@ export function DeploymentsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -189,7 +189,7 @@ export function DeploymentsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {jobs.map((job) => {
                   const completed = job.successCount + job.failureCount;
                   const progressPct = job.totalCount > 0 ? (completed / job.totalCount) * 100 : 0;

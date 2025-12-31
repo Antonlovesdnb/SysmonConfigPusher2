@@ -92,8 +92,8 @@ public class InventoryScanWorker : BackgroundService
 
                     computer.SysmonPath = sysmonPath;
                     computer.SysmonVersion = sysmonVersion;
-                    // Note: ConfigHash and ConfigTag are set during deployment, not during scan
                     computer.LastInventoryScan = DateTime.UtcNow;
+                    computer.LastScanStatus = "Online";
 
                     Interlocked.Increment(ref succeeded);
                     _logger.LogDebug("Scanned {Hostname}: Path={Path}, Version={Version}",
@@ -102,6 +102,7 @@ public class InventoryScanWorker : BackgroundService
                 catch (Exception ex)
                 {
                     computer.LastInventoryScan = DateTime.UtcNow;
+                    computer.LastScanStatus = "Offline";
                     _logger.LogWarning(ex, "Failed to scan {Hostname}", computer.Hostname);
                 }
 

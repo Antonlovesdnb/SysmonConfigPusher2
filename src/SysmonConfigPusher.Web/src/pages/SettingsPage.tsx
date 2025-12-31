@@ -12,8 +12,10 @@ export function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Binary cache state
-  const [binaryCache, setBinaryCache] = useState<BinaryCacheStatus | null>(null);
+  const [allCachedVersions, setAllCachedVersions] = useState<BinaryCacheStatus[]>([]);
   const [downloadingBinary, setDownloadingBinary] = useState(false);
+  const [uploadingBinary, setUploadingBinary] = useState(false);
+  const [deletingVersion, setDeletingVersion] = useState<string | null>(null);
   const [binaryCacheMessage, setBinaryCacheMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // TLS certificate state
@@ -44,8 +46,8 @@ export function SettingsPage() {
 
   const loadBinaryCacheStatus = async () => {
     try {
-      const status = await settingsApi.getBinaryCacheStatus();
-      setBinaryCache(status);
+      const versions = await settingsApi.getAllCachedVersions();
+      setAllCachedVersions(versions);
     } catch (err) {
       console.error('Failed to load binary cache status:', err);
     }
@@ -75,6 +77,38 @@ export function SettingsPage() {
       setBinaryCacheMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to download binary' });
     } finally {
       setDownloadingBinary(false);
+    }
+  };
+
+  const uploadBinary = async (file: File) => {
+    setUploadingBinary(true);
+    setBinaryCacheMessage(null);
+    try {
+      const result = await settingsApi.uploadBinary(file);
+      if (result.success) {
+        setBinaryCacheMessage({ type: 'success', text: result.message });
+        await loadBinaryCacheStatus();
+      } else {
+        setBinaryCacheMessage({ type: 'error', text: result.message });
+      }
+    } catch (err) {
+      setBinaryCacheMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to upload binary' });
+    } finally {
+      setUploadingBinary(false);
+    }
+  };
+
+  const deleteVersion = async (version: string) => {
+    setDeletingVersion(version);
+    setBinaryCacheMessage(null);
+    try {
+      await settingsApi.deleteCachedVersion(version);
+      setBinaryCacheMessage({ type: 'success', text: `Deleted Sysmon v${version}` });
+      await loadBinaryCacheStatus();
+    } catch (err) {
+      setBinaryCacheMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to delete version' });
+    } finally {
+      setDeletingVersion(null);
     }
   };
 
@@ -141,7 +175,7 @@ export function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8">
           <svg
             className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4"
@@ -172,7 +206,7 @@ export function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading settings...</div>
       </div>
     );
@@ -180,7 +214,7 @@ export function SettingsPage() {
 
   if (!settings) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8 text-red-500">Failed to load settings</div>
       </div>
     );
@@ -188,7 +222,7 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
             Application Settings
@@ -276,7 +310,7 @@ export function SettingsPage() {
         {/* Restart Confirmation Modal */}
         {showRestartConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md mx-4">
+            <div className="glass-panel rounded-lg shadow-xl p-6 max-w-md mx-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
                 Restart Service?
               </h3>
@@ -516,7 +550,7 @@ export function SettingsPage() {
             Sysmon Binary Cache
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Download and cache the Sysmon executable for deployments.
+            Download and cache multiple Sysmon versions for deployments.
           </p>
 
           {binaryCacheMessage && (
@@ -529,76 +563,133 @@ export function SettingsPage() {
             </div>
           )}
 
+          {/* Action buttons */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={downloadBinary}
+              disabled={downloadingBinary || uploadingBinary}
+              className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {downloadingBinary ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Downloading...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download from URL
+                </>
+              )}
+            </button>
+            <label className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 cursor-pointer ${(uploadingBinary || downloadingBinary) ? 'opacity-50 pointer-events-none' : ''}`}>
+              {uploadingBinary ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Upload from File
+                </>
+              )}
+              <input
+                type="file"
+                accept=".exe"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    uploadBinary(file);
+                    e.target.value = '';
+                  }
+                }}
+                disabled={uploadingBinary || downloadingBinary}
+              />
+            </label>
+          </div>
+
+          {/* Cached versions list */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    binaryCache?.isCached
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  }`}>
-                    {binaryCache?.isCached ? 'Cached' : 'Not Cached'}
-                  </span>
-                  {binaryCache?.version && (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      v{binaryCache.version}
-                    </span>
-                  )}
-                </div>
-                {binaryCache?.isCached && binaryCache.cachedAt && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Downloaded: {new Date(binaryCache.cachedAt).toLocaleString()}
-                    {binaryCache.fileSizeBytes && (
-                      <> ({(binaryCache.fileSizeBytes / 1024 / 1024).toFixed(2)} MB)</>
-                    )}
-                  </p>
-                )}
-                {!binaryCache?.isCached && (
-                  <p className="text-xs text-yellow-600 dark:text-yellow-500">
-                    Sysmon binary must be downloaded before deployments can run.
-                  </p>
-                )}
+            {allCachedVersions.length === 0 ? (
+              <div className="text-center py-6">
+                <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <p className="text-sm text-yellow-600 dark:text-yellow-500 font-medium">
+                  No Sysmon binaries cached
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Download from the configured URL or upload a Sysmon executable file.
+                </p>
               </div>
-              <button
-                onClick={downloadBinary}
-                disabled={downloadingBinary}
-                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                {downloadingBinary ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                      />
-                    </svg>
-                    {binaryCache?.isCached ? 'Update Binary' : 'Download Binary'}
-                  </>
-                )}
-              </button>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cached Versions ({allCachedVersions.length})
+                </div>
+                {allCachedVersions.map((v, index) => (
+                  <div
+                    key={v.version}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      index === 0
+                        ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-slate-600 text-white rounded flex items-center justify-center text-xs font-bold">
+                        {v.version?.split('.')[0] || '?'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            v{v.version || 'Unknown'}
+                          </span>
+                          {index === 0 && (
+                            <span className="px-2 py-0.5 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 text-xs rounded">
+                              Latest
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {v.fileSizeBytes && `${(v.fileSizeBytes / 1024 / 1024).toFixed(2)} MB`}
+                          {v.cachedAt && ` • Cached ${new Date(v.cachedAt).toLocaleDateString()}`}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => v.version && deleteVersion(v.version)}
+                      disabled={deletingVersion === v.version}
+                      className="p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 disabled:opacity-50"
+                      title="Delete this version"
+                    >
+                      {deletingVersion === v.version ? (
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

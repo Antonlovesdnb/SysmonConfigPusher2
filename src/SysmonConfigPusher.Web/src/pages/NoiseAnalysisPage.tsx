@@ -212,8 +212,11 @@ export function NoiseAnalysisPage() {
   const [parsedFields, setParsedFields] = useState<ParsedField[]>([]);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const [selectedConfigId, setSelectedConfigId] = useState<number | null>(null);
+  const [createNewConfig, setCreateNewConfig] = useState(false);
+  const [newConfigName, setNewConfigName] = useState('');
   const [addingExclusion, setAddingExclusion] = useState(false);
   const [exclusionSuccess, setExclusionSuccess] = useState<string | null>(null);
+  const [resultConfigId, setResultConfigId] = useState<number | null>(null);
   const [startingDeploy, setStartingDeploy] = useState(false);
   const [deployStarted, setDeployStarted] = useState(false);
 
@@ -404,7 +407,10 @@ export function NoiseAnalysisPage() {
     setParsedFields(fields);
     setSelectedFieldIndex(null);
     setExclusionSuccess(null);
+    setResultConfigId(null);
     setDeployStarted(false);
+    setCreateNewConfig(false);
+    setNewConfigName('');
     setShowPatternModal(true);
   }, []);
 
@@ -416,6 +422,7 @@ export function NoiseAnalysisPage() {
 
     setAddingExclusion(true);
     setExclusionSuccess(null);
+    setResultConfigId(null);
 
     try {
       const result = await configsApi.addExclusion(
@@ -423,11 +430,23 @@ export function NoiseAnalysisPage() {
         selectedPattern.eventId,
         field.name,
         field.value,
-        'is'
+        'is',
+        createNewConfig,
+        createNewConfig ? newConfigName || undefined : undefined
       );
 
       if (result.success) {
-        setExclusionSuccess(result.message || `Added exclusion for ${field.name}: "${field.value}"`);
+        let successMsg = result.message || `Added exclusion for ${field.name}: "${field.value}"`;
+        if (createNewConfig && result.configFilename) {
+          successMsg = `Created new config "${result.configFilename}" with exclusion`;
+        }
+        setExclusionSuccess(successMsg);
+        // Store the config ID for deployment (either the new or original)
+        setResultConfigId(result.configId || selectedConfigId);
+        // Reload configs if we created a new one
+        if (createNewConfig) {
+          loadConfigs();
+        }
       } else {
         setError(result.message || 'Failed to add exclusion');
       }
@@ -439,11 +458,12 @@ export function NoiseAnalysisPage() {
   };
 
   const startDeployment = async () => {
-    if (!selectedConfigId || !currentRun) return;
+    const deployConfigId = resultConfigId || selectedConfigId;
+    if (!deployConfigId || !currentRun) return;
 
     setStartingDeploy(true);
     try {
-      await deploymentsApi.start('update', [currentRun.computerId], selectedConfigId);
+      await deploymentsApi.start('update', [currentRun.computerId], deployConfigId);
       setDeployStarted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start deployment');
@@ -468,7 +488,7 @@ export function NoiseAnalysisPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Noise Analysis</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
           Analyze Sysmon event patterns to identify high-volume events and configuration tuning opportunities.
@@ -502,7 +522,7 @@ export function NoiseAnalysisPage() {
           ) : (
             <div className="border dark:border-gray-600 rounded-lg overflow-hidden">
               <div className="max-h-48 overflow-y-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
                   <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                     <tr>
                       <th className="px-4 py-2 text-left w-10"></th>
@@ -511,7 +531,7 @@ export function NoiseAnalysisPage() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sysmon</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200/50 dark:divide-gray-700/50">
                     {filteredComputers.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
@@ -595,7 +615,7 @@ export function NoiseAnalysisPage() {
 
       {/* Results */}
       {currentRun && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="glass-card rounded-lg">
           <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
             <div>
               <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Event Analysis Results</h3>
@@ -621,7 +641,7 @@ export function NoiseAnalysisPage() {
               No events found in the specified time range
             </div>
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
               {eventSummaries.map((summary) => (
                 <EventTypeSection
                   key={summary.eventId}
@@ -638,7 +658,7 @@ export function NoiseAnalysisPage() {
 
       {/* History */}
       {history.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="glass-card rounded-lg">
           <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">Previous Analyses</h3>
             <button
@@ -651,7 +671,7 @@ export function NoiseAnalysisPage() {
               Purge All
             </button>
           </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          <div className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
             {history.map((run) => (
               <div
                 key={run.id}
@@ -676,7 +696,7 @@ export function NoiseAnalysisPage() {
       {/* Exclusion XML Modal */}
       {showExclusionModal && exclusionXml && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col m-4">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Generated Exclusion Rules</h3>
               <button
@@ -722,7 +742,7 @@ export function NoiseAnalysisPage() {
       {/* Pattern Exclusion Modal */}
       {showPatternModal && selectedPattern && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col m-4">
+          <div className="glass-panel rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col m-4">
             <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add Exclusion Rule</h3>
@@ -773,7 +793,7 @@ export function NoiseAnalysisPage() {
               {/* Config Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Add exclusion to config:
+                  Source config:
                 </label>
                 {configs.length === 0 ? (
                   <p className="text-sm text-gray-500 dark:text-gray-400 italic">No configs available. Upload a config first.</p>
@@ -791,6 +811,41 @@ export function NoiseAnalysisPage() {
                   </select>
                 )}
               </div>
+
+              {/* Create New Config Option */}
+              {configs.length > 0 && (
+                <div className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={createNewConfig}
+                      onChange={(e) => setCreateNewConfig(e.target.checked)}
+                      className="w-4 h-4 text-slate-600 rounded"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Create a copy with the exclusion
+                    </span>
+                  </label>
+                  <p className="mt-1 ml-6 text-xs text-gray-500 dark:text-gray-400">
+                    Creates a new config based on the selected one, leaving the original unchanged
+                  </p>
+
+                  {createNewConfig && (
+                    <div className="mt-3 ml-6">
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        New config filename (optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={newConfigName}
+                        onChange={(e) => setNewConfigName(e.target.value)}
+                        placeholder="Auto-generated if empty"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Success Message */}
               {exclusionSuccess && (
@@ -880,7 +935,7 @@ export function NoiseAnalysisPage() {
       {/* Purge Confirmation Modal */}
       {showPurgeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6">
+          <div className="glass-panel rounded-lg shadow-xl max-w-md w-full m-4 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Purge Analysis History
             </h3>

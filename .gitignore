@@ -1,6 +1,13 @@
 # Build outputs
 bin/
 obj/
+publish/
+
+# WiX toolset
+.wix/
+
+# Publish profiles
+PublishProfiles/
 
 # Node
 node_modules/

@@ -373,9 +373,9 @@ public class WmiEventLogService : IEventLogService
             SysmonEventTypes.NetworkConnection => $"Image: {evt.Image ?? "Unknown"} | DestinationIp: {evt.DestinationIp ?? "Unknown"}:{evt.DestinationPort}",
             SysmonEventTypes.DriverLoaded => $"ImageLoaded: {evt.ImageLoaded ?? "Unknown"}",
             SysmonEventTypes.ImageLoaded => $"Image: {evt.Image ?? "Unknown"} | ImageLoaded: {evt.ImageLoaded ?? "Unknown"}",
-            SysmonEventTypes.CreateRemoteThread => $"SourceImage: {evt.Image ?? "Unknown"}",
+            SysmonEventTypes.CreateRemoteThread => $"SourceImage: {GetSourceImageFromRawXml(evt.RawXml) ?? "Unknown"}",
             SysmonEventTypes.RawAccessRead => $"Image: {evt.Image ?? "Unknown"}",
-            SysmonEventTypes.ProcessAccess => $"SourceImage: {evt.Image ?? "Unknown"}",
+            SysmonEventTypes.ProcessAccess => $"SourceImage: {GetSourceImageFromRawXml(evt.RawXml) ?? "Unknown"}",
             SysmonEventTypes.FileCreate => $"Image: {evt.Image ?? "Unknown"} | TargetFolder: {Path.GetDirectoryName(evt.TargetFilename) ?? "Unknown"}",
             SysmonEventTypes.RegistryObjectCreateDelete => $"Image: {evt.Image ?? "Unknown"}",
             SysmonEventTypes.RegistryValueSet => $"Image: {evt.Image ?? "Unknown"}",
@@ -388,6 +388,22 @@ public class WmiEventLogService : IEventLogService
             SysmonEventTypes.FileDeleteLogged => $"Image: {evt.Image ?? "Unknown"} | TargetFilename: {evt.TargetFilename ?? "Unknown"}",
             _ => $"Image: {evt.Image ?? "Unknown"}"
         };
+    }
+
+    private static string? GetSourceImageFromRawXml(string? rawXml)
+    {
+        if (string.IsNullOrEmpty(rawXml)) return null;
+        try
+        {
+            var doc = XDocument.Parse(rawXml);
+            var ns = doc.Root?.GetDefaultNamespace() ?? XNamespace.None;
+            return doc.Descendants(ns + "Data")
+                .FirstOrDefault(d => d.Attribute("Name")?.Value == "SourceImage")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string GetSampleValue(SysmonEvent evt)

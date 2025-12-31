@@ -57,7 +57,8 @@ export function DeploymentQueuePanel() {
         const job = await deploymentsApi.start(
           item.operation,
           item.computers.map((c) => c.id),
-          item.config?.id
+          item.config?.id,
+          item.sysmonVersion ?? undefined
         );
         results.push({ id: item.id, success: true, jobId: job.id });
       } catch (err) {
@@ -128,7 +129,7 @@ export function DeploymentQueuePanel() {
   const hasImmediateItems = queue.some(item => !item.scheduledAt);
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-white dark:bg-gray-800 shadow-2xl z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 glass-panel shadow-2xl z-50 flex flex-col">
       {/* Header */}
       <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
         <div>
@@ -329,6 +330,12 @@ function QueueItem({
               {item.config.tag}
             </span>
           )}
+        </div>
+      )}
+
+      {item.sysmonVersion && (
+        <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+          <span className="text-gray-500 dark:text-gray-400">Sysmon:</span> v{item.sysmonVersion}
         </div>
       )}
 

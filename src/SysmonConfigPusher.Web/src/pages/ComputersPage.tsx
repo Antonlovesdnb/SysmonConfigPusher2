@@ -146,7 +146,7 @@ export function ComputersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Inventory</h2>
           <div className="flex gap-2">
@@ -244,7 +244,7 @@ export function ComputersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-4 py-3 text-left">
@@ -272,7 +272,7 @@ export function ComputersPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 {computers.map((computer) => (
                   <tr
                     key={computer.id}
@@ -297,11 +297,15 @@ export function ComputersPage() {
                       {computer.operatingSystem || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {computer.sysmonPath ? (
+                      {computer.lastScanStatus === 'Offline' ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-400">
+                          Offline
+                        </span>
+                      ) : computer.sysmonPath ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400">
                           {computer.sysmonVersion || 'Installed'}
                         </span>
-                      ) : computer.lastInventoryScan ? (
+                      ) : computer.lastScanStatus === 'Online' ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
                           Not installed
                         </span>

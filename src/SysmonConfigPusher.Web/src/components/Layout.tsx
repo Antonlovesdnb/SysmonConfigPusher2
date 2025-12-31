@@ -19,8 +19,8 @@ export function Layout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
-      <header className="bg-slate-800 dark:bg-slate-950 text-white shadow-lg">
+    <div className="min-h-screen bg-app-gradient transition-colors">
+      <header className="glass-nav text-white shadow-lg sticky top-0 z-30">
         <div className="w-full px-6 py-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-6">

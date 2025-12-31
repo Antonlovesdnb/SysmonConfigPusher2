@@ -170,12 +170,20 @@ export const configsApi = {
     eventId: number,
     fieldName: string,
     value: string,
-    condition: string = 'is'
-  ): Promise<{ success: boolean; updatedContent: string | null; message: string | null }> {
+    condition: string = 'is',
+    createNewConfig: boolean = false,
+    newConfigName?: string
+  ): Promise<{
+    success: boolean;
+    updatedContent: string | null;
+    message: string | null;
+    configId?: number;
+    configFilename?: string;
+  }> {
     const response = await fetchWithAuth(`/api/configs/${configId}/exclusions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId, fieldName, value, condition }),
+      body: JSON.stringify({ eventId, fieldName, value, condition, createNewConfig, newConfigName }),
     });
     if (!response.ok) throw new Error(`Failed to add exclusion: ${response.status}`);
     return response.json();
@@ -221,11 +229,11 @@ export const deploymentsApi = {
     return response.json();
   },
 
-  async start(operation: string, computerIds: number[], configId?: number): Promise<DeploymentJob> {
+  async start(operation: string, computerIds: number[], configId?: number, sysmonVersion?: string): Promise<DeploymentJob> {
     const response = await fetchWithAuth('/api/deployments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ operation, computerIds, configId }),
+      body: JSON.stringify({ operation, computerIds, configId, sysmonVersion }),
     });
     if (!response.ok) throw new Error(`Failed to start deployment: ${response.status}`);
     return response.json();
@@ -415,6 +423,33 @@ export const settingsApi = {
     const response = await fetchWithAuth('/api/settings/binary-cache/update', { method: 'POST' });
     if (!response.ok) throw new Error(`Failed to update binary cache: ${response.status}`);
     return response.json();
+  },
+
+  async getAllCachedVersions(): Promise<BinaryCacheStatus[]> {
+    const response = await fetchWithAuth('/api/settings/binary-cache/versions');
+    if (!response.ok) throw new Error(`Failed to get cached versions: ${response.status}`);
+    return response.json();
+  },
+
+  async uploadBinary(file: File): Promise<BinaryCacheUpdateResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetchWithAuth('/api/settings/binary-cache/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw new Error(error.message || `Failed to upload binary: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async deleteCachedVersion(version: string): Promise<void> {
+    const response = await fetchWithAuth(`/api/settings/binary-cache/versions/${encodeURIComponent(version)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error(`Failed to delete cached version: ${response.status}`);
   },
 
   async restart(): Promise<RestartResult> {

@@ -123,6 +123,7 @@ public class DeploymentWorker : BackgroundService
                         job.Operation,
                         result.Computer,
                         job.Config,
+                        job.SysmonVersion,
                         remoteExec,
                         fileTransfer,
                         ct);
@@ -179,13 +180,14 @@ public class DeploymentWorker : BackgroundService
         string operation,
         Computer computer,
         Config? config,
+        string? sysmonVersion,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
         CancellationToken cancellationToken)
     {
         return operation.ToLowerInvariant() switch
         {
-            "install" => await InstallSysmonAsync(computer, config, remoteExec, fileTransfer, cancellationToken),
+            "install" => await InstallSysmonAsync(computer, config, sysmonVersion, remoteExec, fileTransfer, cancellationToken),
             "update" or "pushconfig" => await UpdateConfigAsync(computer, config, remoteExec, fileTransfer, cancellationToken),
             "uninstall" => await UninstallSysmonAsync(computer, remoteExec, cancellationToken),
             "test" => await TestConnectivityAsync(computer.Hostname, remoteExec, cancellationToken),
@@ -196,6 +198,7 @@ public class DeploymentWorker : BackgroundService
     private async Task<(bool, string?)> InstallSysmonAsync(
         Computer computer,
         Config? config,
+        string? sysmonVersion,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
         CancellationToken cancellationToken)
@@ -210,12 +213,23 @@ public class DeploymentWorker : BackgroundService
         if (!dirResult.Success)
             return (false, $"Failed to create directory: {dirResult.ErrorMessage}");
 
-        // 2. Copy Sysmon binary from cache
-        if (!_binaryCacheService.IsCached)
-            return (false, "Sysmon binary not found in cache. Download it from the Settings page first.");
+        // 2. Get the Sysmon binary path (specific version or latest)
+        string? binaryPath;
+        if (!string.IsNullOrEmpty(sysmonVersion))
+        {
+            binaryPath = _binaryCacheService.GetCachePath(sysmonVersion);
+            if (string.IsNullOrEmpty(binaryPath))
+                return (false, $"Sysmon version {sysmonVersion} not found in cache.");
+        }
+        else
+        {
+            if (!_binaryCacheService.IsCached)
+                return (false, "Sysmon binary not found in cache. Download it from the Settings page first.");
+            binaryPath = _binaryCacheService.CachePath;
+        }
 
         var copyResult = await fileTransfer.CopyFileAsync(
-            hostname, _binaryCacheService.CachePath, Path.Combine(sysmonDir, sysmonExe), cancellationToken);
+            hostname, binaryPath, Path.Combine(sysmonDir, sysmonExe), cancellationToken);
         if (!copyResult.Success)
             return (false, $"Failed to copy Sysmon binary: {copyResult.ErrorMessage}");
 

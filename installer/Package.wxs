@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
+
+  <Package Name="SysmonConfigPusher"
+           Manufacturer="SysmonConfigPusher"
+           Version="2.0.0.0"
+           UpgradeCode="E8F7A9B1-2C3D-4E5F-6A7B-8C9D0E1F2A3B"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Program Files installation -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="SysmonConfigPusher">
+        <Directory Id="ScriptsFolder" Name="scripts" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- ProgramData directory -->
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="SysmonPusherDataFolder" Name="SysmonConfigPusher">
+        <Directory Id="LogsFolder" Name="logs" />
+        <Directory Id="BackupsFolder" Name="backups" />
+        <Directory Id="BinaryCacheFolder" Name="BinaryCache" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Main application files - harvested from publish output -->
+    <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(PublishDir)\**">
+        <Exclude Files="$(PublishDir)\**\*.pdb" />
+        <Exclude Files="$(PublishDir)\SysmonConfigPusher.Service.exe" />
+      </Files>
+    </ComponentGroup>
+
+    <!-- Scripts -->
+    <ComponentGroup Id="ScriptFiles" Directory="ScriptsFolder">
+      <Component Id="InstallScript" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567891">
+        <File Id="InstallServicePs1" Source="..\scripts\install-service.ps1" KeyPath="yes" />
+      </Component>
+      <Component Id="UninstallScript" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567892">
+        <File Id="UninstallServicePs1" Source="..\scripts\uninstall-service.ps1" KeyPath="yes" />
+      </Component>
+      <Component Id="BackupScript" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567893">
+        <File Id="BackupDatabasePs1" Source="..\scripts\backup-database.ps1" KeyPath="yes" />
+      </Component>
+      <Component Id="CertScript" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567895">
+        <File Id="CreateCertificatePs1" Source="..\scripts\create-certificate.ps1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Custom action to create self-signed certificate -->
+    <SetProperty Id="CreateCertificate"
+                 Value="&quot;powershell.exe&quot; -ExecutionPolicy Bypass -File &quot;[ScriptsFolder]create-certificate.ps1&quot;"
+                 Before="CreateCertificate"
+                 Sequence="execute" />
+    <CustomAction Id="CreateCertificate"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="CreateCertificate" After="InstallFiles" Condition="NOT Installed" />
+    </InstallExecuteSequence>
+
+    <!-- Production config template -->
+    <ComponentGroup Id="ConfigFiles" Directory="INSTALLFOLDER">
+      <Component Id="ProductionConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567894" NeverOverwrite="yes">
+        <File Id="AppSettingsProduction" Source="appsettings.Production.json" Name="appsettings.Production.json" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Create data directories -->
+    <ComponentGroup Id="DataDirectories">
+      <Component Id="CreateLogsDir" Directory="LogsFolder" Guid="B1C2D3E4-F5A6-7890-BCDE-F12345678901">
+        <CreateFolder />
+      </Component>
+      <Component Id="CreateBackupsDir" Directory="BackupsFolder" Guid="B1C2D3E4-F5A6-7890-BCDE-F12345678902">
+        <CreateFolder />
+      </Component>
+      <Component Id="CreateCacheDir" Directory="BinaryCacheFolder" Guid="B1C2D3E4-F5A6-7890-BCDE-F12345678903">
+        <CreateFolder />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Windows Service -->
+    <Component Id="SysmonPusherService" Directory="INSTALLFOLDER" Guid="C1D2E3F4-A5B6-7890-CDEF-123456789012">
+      <File Id="ServiceExe" Source="$(PublishDir)\SysmonConfigPusher.Service.exe" KeyPath="yes" />
+      <ServiceInstall Id="SysmonConfigPusherService"
+                      Name="SysmonConfigPusher"
+                      DisplayName="Sysmon Config Pusher"
+                      Description="Manages Sysmon configurations across Windows endpoints in an Active Directory environment."
+                      Type="ownProcess"
+                      Start="demand"
+                      ErrorControl="normal"
+                      Account="LocalSystem" />
+      <ServiceControl Id="StopService"
+                      Name="SysmonConfigPusher"
+                      Stop="both"
+                      Remove="uninstall"
+                      Wait="yes" />
+    </Component>
+
+    <!-- Firewall Rule -->
+    <Component Id="FirewallRule" Directory="INSTALLFOLDER" Guid="D1E2F3A4-B5C6-7890-DEF0-234567890123">
+      <fw:FirewallException Id="SysmonPusherFirewall"
+                            Name="SysmonConfigPusher Web UI"
+                            Description="Allow inbound connections to SysmonConfigPusher web interface"
+                            Port="5001"
+                            Protocol="tcp"
+                            Scope="any"
+                            Profile="all" />
+    </Component>
+
+    <!-- Feature definition -->
+    <Feature Id="ProductFeature" Title="SysmonConfigPusher" Level="1">
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <ComponentGroupRef Id="ScriptFiles" />
+      <ComponentGroupRef Id="ConfigFiles" />
+      <ComponentGroupRef Id="DataDirectories" />
+      <ComponentRef Id="SysmonPusherService" />
+      <ComponentRef Id="FirewallRule" />
+    </Feature>
+
+  </Package>
+</Wix>

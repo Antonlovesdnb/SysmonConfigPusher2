@@ -24,6 +24,7 @@ export interface Computer {
   configTag: string | null;
   lastDeployment: string | null;
   lastInventoryScan: string | null;
+  lastScanStatus: 'Online' | 'Offline' | null;
 }
 
 export interface ComputerGroup {

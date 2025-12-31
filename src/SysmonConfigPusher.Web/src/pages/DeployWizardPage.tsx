@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { computersApi, configsApi, deploymentsApi } from '../api';
+import { computersApi, configsApi, deploymentsApi, settingsApi, type BinaryCacheStatus } from '../api';
 import type { Computer, Config, DeploymentOperation } from '../types';
 import { DEPLOYMENT_OPERATIONS } from '../types';
 import { useDeploymentQueue } from '../context/DeploymentQueueContext';
@@ -18,11 +18,13 @@ export function DeployWizardPage() {
   const [step, setStep] = useState<WizardStep>('computers');
   const [computers, setComputers] = useState<Computer[]>([]);
   const [configs, setConfigs] = useState<Config[]>([]);
+  const [sysmonVersions, setSysmonVersions] = useState<BinaryCacheStatus[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(
     new Set(location.state?.computerIds || [])
   );
   const [operation, setOperation] = useState<DeploymentOperation | null>(null);
   const [configId, setConfigId] = useState<number | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [search, setSearch] = useState('');
@@ -35,12 +37,18 @@ export function DeployWizardPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [computersData, configsData] = await Promise.all([
+      const [computersData, configsData, versionsData] = await Promise.all([
         computersApi.list(),
         configsApi.list(),
+        settingsApi.getAllCachedVersions(),
       ]);
       setComputers(computersData);
       setConfigs(configsData);
+      setSysmonVersions(versionsData);
+      // Default to latest version if available
+      if (versionsData.length > 0 && versionsData[0].version) {
+        setSelectedVersion(versionsData[0].version);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
@@ -102,6 +110,10 @@ export function DeployWizardPage() {
       case 'computers':
         return selectedIds.size > 0;
       case 'operation':
+        // For install, require a cached version
+        if (operation === 'install') {
+          return sysmonVersions.length > 0 && selectedVersion !== null;
+        }
         return operation !== null;
       case 'config':
         return !selectedOperation?.requiresConfig || configId !== null;
@@ -143,7 +155,8 @@ export function DeployWizardPage() {
       const job = await deploymentsApi.start(
         operation,
         Array.from(selectedIds),
-        configId ?? undefined
+        configId ?? undefined,
+        operation === 'install' ? selectedVersion ?? undefined : undefined
       );
       navigate(`/deployments/${job.id}`);
     } catch (err) {
@@ -161,6 +174,7 @@ export function DeployWizardPage() {
       config: selectedConfig
         ? { id: selectedConfig.id, filename: selectedConfig.filename, tag: selectedConfig.tag }
         : null,
+      sysmonVersion: operation === 'install' ? selectedVersion : null,
       computers: selectedComputers.map((c) => ({ id: c.id, hostname: c.hostname })),
     });
 
@@ -174,7 +188,7 @@ export function DeployWizardPage() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
@@ -182,7 +196,7 @@ export function DeployWizardPage() {
 
   if (!canDeploy) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         <div className="text-center py-8">
           <svg className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -202,7 +216,7 @@ export function DeployWizardPage() {
   return (
     <div className="space-y-4">
       {/* Progress indicator */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+      <div className="glass-card rounded-lg p-4">
         <div className="flex items-center justify-between">
           {['computers', 'operation', 'config', 'confirm'].map((s, i) => {
             const stepLabels: Record<string, string> = {
@@ -252,7 +266,7 @@ export function DeployWizardPage() {
       )}
 
       {/* Step content */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="glass-card rounded-lg p-6">
         {step === 'computers' && (
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -267,7 +281,7 @@ export function DeployWizardPage() {
             </div>
 
             <div className="max-h-96 overflow-y-auto border dark:border-gray-700 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <table className="min-w-full divide-y divide-gray-200/50 dark:divide-gray-700/50">
                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                   <tr>
                     <th className="px-4 py-3 text-left">
@@ -292,7 +306,7 @@ export function DeployWizardPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-gray-200/50 dark:divide-gray-700/50">
                   {filteredComputers.map((computer) => (
                     <tr
                       key={computer.id}
@@ -362,6 +376,49 @@ export function DeployWizardPage() {
                 </label>
               ))}
             </div>
+
+            {/* Sysmon Version Selector - only for install operation */}
+            {operation === 'install' && (
+              <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Sysmon Binary Version</h3>
+                {sysmonVersions.length === 0 ? (
+                  <div className="text-sm text-yellow-600 dark:text-yellow-400">
+                    No Sysmon binaries cached. Go to Settings to download or upload a Sysmon binary.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {sysmonVersions.map((v) => (
+                      <label
+                        key={v.version}
+                        className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedVersion === v.version
+                            ? 'border-slate-500 bg-white dark:bg-gray-600 dark:border-slate-500'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="sysmonVersion"
+                          value={v.version || ''}
+                          checked={selectedVersion === v.version}
+                          onChange={() => setSelectedVersion(v.version)}
+                          className="w-4 h-4 accent-slate-600"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
+                            {v.version || 'Unknown version'}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {v.fileSizeBytes ? `${(v.fileSizeBytes / 1024 / 1024).toFixed(2)} MB` : ''}
+                            {v.cachedAt && ` • Cached ${new Date(v.cachedAt).toLocaleDateString()}`}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -428,6 +485,13 @@ export function DeployWizardPage() {
                       {selectedConfig.tag}
                     </span>
                   )}
+                </div>
+              )}
+
+              {operation === 'install' && selectedVersion && (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Sysmon Binary</h3>
+                  <div className="text-lg text-gray-900 dark:text-gray-100">Version {selectedVersion}</div>
                 </div>
               )}
 

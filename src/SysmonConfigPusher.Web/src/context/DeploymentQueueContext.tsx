@@ -6,6 +6,7 @@ export interface QueuedDeployment {
   operation: DeploymentOperation;
   operationLabel: string;
   config: { id: number; filename: string; tag: string | null } | null;
+  sysmonVersion: string | null;
   computers: { id: number; hostname: string }[];
   addedAt: string;
   scheduledAt: string | null;
