@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: src/SysmonConfigPusher.Web
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: src/SysmonConfigPusher.Web
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish backend
+        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -o publish
+
+      - name: Build MSI
+        working-directory: installer
+        run: dotnet build -c Release
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: installer/bin/Release/SysmonConfigPusher.msi
+          draft: true
+          generate_release_notes: true
+          name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
