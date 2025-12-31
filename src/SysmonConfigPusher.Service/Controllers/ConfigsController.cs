@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,17 +20,23 @@ public partial class ConfigsController : ControllerBase
     private readonly SysmonDbContext _db;
     private readonly IAuditService _auditService;
     private readonly IConfigValidationService _validationService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ConfigsController> _logger;
+
+    // Maximum config file size (5 MB)
+    private const int MaxConfigSize = 5 * 1024 * 1024;
 
     public ConfigsController(
         SysmonDbContext db,
         IAuditService auditService,
         IConfigValidationService validationService,
+        IHttpClientFactory httpClientFactory,
         ILogger<ConfigsController> logger)
     {
         _db = db;
         _auditService = auditService;
         _validationService = validationService;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -47,7 +54,8 @@ public partial class ConfigsController : ControllerBase
                 c.UploadedBy,
                 c.UploadedAt,
                 c.IsValid,
-                c.ValidationMessage))
+                c.ValidationMessage,
+                c.SourceUrl))
             .ToListAsync();
 
         return Ok(configs);
@@ -113,6 +121,190 @@ public partial class ConfigsController : ControllerBase
         return CreatedAtAction(nameof(GetConfig), new { id = config.Id },
             new ConfigDto(config.Id, config.Filename, config.Tag, config.Hash, config.UploadedBy, config.UploadedAt,
                 config.IsValid, config.ValidationMessage));
+    }
+
+    /// <summary>
+    /// Import a Sysmon configuration from a remote URL.
+    /// </summary>
+    [HttpPost("from-url")]
+    [Authorize(Policy = "RequireOperator")]
+    public async Task<ActionResult<ConfigDto>> ImportFromUrl([FromBody] ImportFromUrlRequest request)
+    {
+        // Validate URL
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, "URL is required"));
+        }
+
+        if (!Uri.TryCreate(request.Url, UriKind.Absolute, out var uri))
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, "Invalid URL format"));
+        }
+
+        // Only allow HTTP and HTTPS schemes
+        if (uri.Scheme != "http" && uri.Scheme != "https")
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, "Only HTTP and HTTPS URLs are supported"));
+        }
+
+        // Block private/local IP ranges to prevent SSRF
+        if (IsPrivateOrLocalAddress(uri.Host))
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, "URLs pointing to private or local addresses are not allowed"));
+        }
+
+        string content;
+        try
+        {
+            var client = _httpClientFactory.CreateClient("ConfigImport");
+            client.Timeout = TimeSpan.FromSeconds(30);
+
+            // Set a reasonable max response size
+            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            // Check content length if available
+            if (response.Content.Headers.ContentLength > MaxConfigSize)
+            {
+                return BadRequest(new ImportFromUrlResponse(false, null, $"File too large. Maximum size is {MaxConfigSize / 1024 / 1024} MB"));
+            }
+
+            // Read content as string (handles encoding properly)
+            content = await response.Content.ReadAsStringAsync();
+
+            if (content.Length > MaxConfigSize)
+            {
+                return BadRequest(new ImportFromUrlResponse(false, null, $"File too large. Maximum size is {MaxConfigSize / 1024 / 1024} MB"));
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch config from URL: {Url}", request.Url);
+            return BadRequest(new ImportFromUrlResponse(false, null, $"Failed to fetch URL: {ex.Message}"));
+        }
+        catch (TaskCanceledException)
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, "Request timed out"));
+        }
+
+        // Parse XML securely (prevent XXE)
+        try
+        {
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                MaxCharactersFromEntities = 0
+            };
+
+            using var stringReader = new StringReader(content);
+            using var xmlReader = XmlReader.Create(stringReader, settings);
+
+            // Try to load to verify it's valid XML
+            var doc = XDocument.Load(xmlReader);
+
+            // Re-serialize to normalize the content
+            content = doc.ToString(SaveOptions.None);
+        }
+        catch (XmlException ex)
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, $"Invalid XML: {ex.Message}"));
+        }
+
+        // Validate it's a valid Sysmon config
+        var validationResult = _validationService.Validate(content);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new ImportFromUrlResponse(false, null, $"Invalid Sysmon configuration: {validationResult.Message}"));
+        }
+
+        // Extract filename from URL or use default
+        var filename = GetFilenameFromUrl(uri) ?? "imported-config.xml";
+
+        // Parse SCPTAG from config
+        var tag = ParseScpTag(content);
+
+        // Calculate hash
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+
+        var config = new Config
+        {
+            Filename = filename,
+            Tag = tag,
+            Content = content,
+            Hash = hash,
+            UploadedBy = User.Identity?.Name,
+            IsValid = validationResult.IsValid,
+            ValidationMessage = validationResult.Message,
+            SourceUrl = request.Url
+        };
+
+        _db.Configs.Add(config);
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogAsync(User.Identity?.Name, AuditAction.ConfigUpload,
+            new { ConfigId = config.Id, Filename = filename, Tag = tag, SourceUrl = request.Url });
+
+        _logger.LogInformation("User {User} imported config from URL {Url} as {Filename} with tag {Tag}",
+            User.Identity?.Name, request.Url, filename, tag);
+
+        return CreatedAtAction(nameof(GetConfig), new { id = config.Id },
+            new ConfigDto(config.Id, config.Filename, config.Tag, config.Hash, config.UploadedBy, config.UploadedAt,
+                config.IsValid, config.ValidationMessage, config.SourceUrl));
+    }
+
+    private static bool IsPrivateOrLocalAddress(string host)
+    {
+        // Check for localhost variations
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            host.Equals("::1", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Try to parse as IP address
+        if (System.Net.IPAddress.TryParse(host, out var ip))
+        {
+            // Check for private IP ranges
+            var bytes = ip.GetAddressBytes();
+
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                // 10.0.0.0/8
+                if (bytes[0] == 10) return true;
+                // 172.16.0.0/12
+                if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
+                // 192.168.0.0/16
+                if (bytes[0] == 192 && bytes[1] == 168) return true;
+                // 127.0.0.0/8 (loopback)
+                if (bytes[0] == 127) return true;
+                // 169.254.0.0/16 (link-local)
+                if (bytes[0] == 169 && bytes[1] == 254) return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? GetFilenameFromUrl(Uri uri)
+    {
+        var path = uri.AbsolutePath;
+        if (string.IsNullOrEmpty(path) || path == "/")
+            return null;
+
+        var filename = Path.GetFileName(path);
+        if (string.IsNullOrEmpty(filename))
+            return null;
+
+        // Sanitize filename - remove any potentially dangerous characters
+        filename = string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
+
+        // Ensure it has .xml extension
+        if (!filename.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            filename += ".xml";
+
+        return filename;
     }
 
     [HttpPut("{id}")]
@@ -374,7 +566,8 @@ public record ConfigDto(
     string? UploadedBy,
     DateTime UploadedAt,
     bool IsValid = true,
-    string? ValidationMessage = null);
+    string? ValidationMessage = null,
+    string? SourceUrl = null);
 
 public record ConfigDetailDto(
     int Id,
@@ -405,3 +598,11 @@ public record AddExclusionResponse(
 
 public record UpdateConfigRequest(
     string Content);
+
+public record ImportFromUrlRequest(
+    string Url);
+
+public record ImportFromUrlResponse(
+    bool Success,
+    ConfigDto? Config,
+    string? Error);

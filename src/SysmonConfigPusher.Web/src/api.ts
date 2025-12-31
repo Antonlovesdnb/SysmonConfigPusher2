@@ -186,6 +186,24 @@ export const configsApi = {
     if (!response.ok) throw new Error(`Failed to get config diff: ${response.status}`);
     return response.json();
   },
+
+  async importFromUrl(url: string): Promise<Config> {
+    const response = await fetchWithAuth('/api/configs/from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) {
+      // Try to get the error message from the response body
+      try {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to import config: ${response.status}`);
+      } catch {
+        throw new Error(`Failed to import config: ${response.status}`);
+      }
+    }
+    return response.json();
+  },
 };
 
 // Deployments API

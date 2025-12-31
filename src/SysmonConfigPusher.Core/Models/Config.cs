@@ -15,5 +15,8 @@ public class Config
     public bool IsValid { get; set; } = true;
     public string? ValidationMessage { get; set; }
 
+    // Source URL if imported from remote location
+    public string? SourceUrl { get; set; }
+
     public ICollection<DeploymentJob> DeploymentJobs { get; set; } = [];
 }

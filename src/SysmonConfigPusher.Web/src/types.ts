@@ -43,6 +43,7 @@ export interface Config {
   uploadedAt: string;
   isValid: boolean;
   validationMessage: string | null;
+  sourceUrl: string | null;
 }
 
 export interface ConfigDetail extends Config {

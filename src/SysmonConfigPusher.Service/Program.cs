@@ -88,6 +88,13 @@ builder.Services.Configure<SysmonConfigPusherSettings>(
 // Sysmon binary cache service
 builder.Services.AddHttpClient<ISysmonBinaryCacheService, SysmonBinaryCacheService>();
 
+// HttpClient for config import from URL
+builder.Services.AddHttpClient("ConfigImport", client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", "SysmonConfigPusher/2.0");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 // Configure SQLite
 var dataPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
