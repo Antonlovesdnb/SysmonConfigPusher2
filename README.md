@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/releases/latest"><img src="https://img.shields.io/github/v/release/Antonlovesdnb/SysmonConfigPusher2?style=flat-square&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Antonlovesdnb/SysmonConfigPusher2/ci.yml?style=flat-square&label=build" alt="Build Status"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Antonlovesdnb/SysmonConfigPusher2?style=flat-square" alt="License"></a>
+  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/version-2.0.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?style=flat-square" alt=".NET 8">
   <img src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" alt="Windows">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
 </p>
 
 ---
