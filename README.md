@@ -1,13 +1,13 @@
 <p align="center">
   <h1 align="center">SysmonConfigPusher v2</h1>
   <p align="center">
-    A web-based tool for managing Sysmon configurations across Windows endpoints in Active Directory environments — no agents required.
+    A web-based tool for managing Sysmon configurations across Windows endpoints — supports both agentless (WMI/SMB) and agent-based deployments.
   </p>
 </p>
 
 <p align="center">
   <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/version-2.0.0-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.1.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?style=flat-square" alt=".NET 8">
   <img src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" alt="Windows">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
@@ -20,6 +20,7 @@
 | Feature | Description |
 |---------|-------------|
 | **Agentless Deployment** | Push Sysmon binaries and configs via WMI and SMB |
+| **Agent Support** | Lightweight agent for cloud VMs and DMZ servers |
 | **Web Interface** | Modern React UI with real-time deployment progress |
 | **Event Log Viewer** | Query Sysmon logs from remote hosts |
 | **Noise Analysis** | Identify high-volume events to tune configurations |
@@ -45,6 +46,7 @@ See the [Development Guide](docs/DEVELOPMENT.md) for building and running locall
 |-------|-------------|
 | [Installation Guide](docs/INSTALLATION.md) | Production deployment and configuration |
 | [Usage Guide](docs/USAGE.md) | How to use the application |
+| [Agent Guide](docs/AGENTS.md) | Deploying and managing the lightweight agent |
 | [Development Guide](docs/DEVELOPMENT.md) | Building from source, running locally |
 
 ## Requirements
@@ -72,12 +74,14 @@ See the [Development Guide](docs/DEVELOPMENT.md) for building and running locall
 │  ┌────────────────────────────────┐  │
 │  │    SQLite + Background Jobs    │  │
 │  └────────────────────────────────┘  │
-└──────────────────┬───────────────────┘
-                   │ WMI + SMB
-                   ▼
-┌──────────────────────────────────────┐
-│    Target Endpoints (No Agent)       │
-└──────────────────────────────────────┘
+└───────────┬───────────────┬──────────┘
+            │               │
+    WMI+SMB │               │ HTTPS (Agent API)
+            ▼               ▼
+┌───────────────────┐ ┌────────────────────┐
+│ Domain Endpoints  │ │  Cloud/DMZ Agents  │
+│   (Agentless)     │ │  (Lightweight)     │
+└───────────────────┘ └────────────────────┘
 ```
 
 ## Tech Stack
