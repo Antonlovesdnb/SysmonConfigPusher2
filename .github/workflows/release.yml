@@ -100,7 +100,7 @@ jobs:
           files: |
             installer/bin/Release/*.msi
             installer/agent/bin/Release/*.msi
-          draft: true
+          draft: false
           generate_release_notes: true
           name: ${{ github.ref_name }}
           body: |
