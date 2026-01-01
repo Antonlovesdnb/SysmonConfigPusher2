@@ -115,8 +115,8 @@ jobs:
 
             ### Server
             1. Download and run `SysmonConfigPusher-${{ steps.version.outputs.VERSION }}.msi` on your management server
-            2. Configure settings in `appsettings.json`
-            3. Start the service: `Start-Service SysmonConfigPusher`
+            2. Start the service: `Start-Service SysmonConfigPusher`
+            3. Access the web UI at `https://servername:5001`
 
             ### Agent (for cloud endpoints)
             1. Download `SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi`
