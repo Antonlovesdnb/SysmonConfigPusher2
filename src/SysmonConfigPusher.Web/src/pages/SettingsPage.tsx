@@ -245,515 +245,502 @@ export function SettingsPage() {
   // Filter tabs based on admin status
   const availableTabs = TAB_CONFIG.filter((tab) => !tab.adminOnly || isAdmin);
 
-  // Tab content components
-  const DisplaySettingsContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Configure how information is displayed in the application.
-      </p>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Timestamp Format
-        </label>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="timestampFormat"
-              value="local"
-              checked={timestampFormat === 'local'}
-              onChange={() => setTimestampFormat('local')}
-              className="w-4 h-4 text-slate-600 focus:ring-slate-500"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Local Time</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="timestampFormat"
-              value="utc"
-              checked={timestampFormat === 'utc'}
-              onChange={() => setTimestampFormat('utc')}
-              className="w-4 h-4 text-slate-600 focus:ring-slate-500"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">UTC</span>
-          </label>
-        </div>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Preview: {formatTimestamp(new Date(), { includeSeconds: true })}
-        </p>
-      </div>
-    </div>
-  );
-
-  const AuthorizationSettingsContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Configure Active Directory security groups for role-based access control.
-      </p>
-      {settings && (
-        <div className="grid gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Admin Group
-            </label>
-            <input
-              type="text"
-              value={settings.authorization.adminGroup}
-              onChange={(e) => updateAuthorization('adminGroup', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="SysmonPusher-Admins"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              AD group for full administrative access
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'display':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Configure how information is displayed in the application.
             </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Operator Group
-            </label>
-            <input
-              type="text"
-              value={settings.authorization.operatorGroup}
-              onChange={(e) => updateAuthorization('operatorGroup', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="SysmonPusher-Operators"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              AD group for deployment and config management
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Viewer Group
-            </label>
-            <input
-              type="text"
-              value={settings.authorization.viewerGroup}
-              onChange={(e) => updateAuthorization('viewerGroup', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="SysmonPusher-Viewers"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              AD group for read-only access
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Default Role
-            </label>
-            <select
-              value={settings.authorization.defaultRole}
-              onChange={(e) => updateAuthorization('defaultRole', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            >
-              <option value="Viewer">Viewer</option>
-              <option value="Operator">Operator</option>
-              <option value="Admin">Admin</option>
-              <option value="None">None (Deny access)</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Role assigned when user doesn't match any group
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const DeploymentSettingsContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Configure Sysmon deployment behavior and paths.
-      </p>
-      {settings && (
-        <div className="grid gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Sysmon Binary URL
-            </label>
-            <input
-              type="url"
-              value={settings.sysmonConfigPusher.sysmonBinaryUrl}
-              onChange={(e) => updateSysmonConfigPusher('sysmonBinaryUrl', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="https://live.sysinternals.com/Sysmon.exe"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              URL to download Sysmon executable from
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Default Parallelism
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="500"
-              value={settings.sysmonConfigPusher.defaultParallelism}
-              onChange={(e) =>
-                updateSysmonConfigPusher('defaultParallelism', parseInt(e.target.value) || 50)
-              }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Maximum concurrent deployment operations (1-500)
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Remote Directory
-            </label>
-            <input
-              type="text"
-              value={settings.sysmonConfigPusher.remoteDirectory}
-              onChange={(e) => updateSysmonConfigPusher('remoteDirectory', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="C:\SysmonFiles"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Target directory on remote hosts for Sysmon files
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Audit Log Path (JSON)
-            </label>
-            <input
-              type="text"
-              value={settings.sysmonConfigPusher.auditLogPath}
-              onChange={(e) => updateSysmonConfigPusher('auditLogPath', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="C:\Logs\sysmon-pusher-audit.json"
-            />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Path to write JSON audit log file. Leave empty to disable file logging.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const AgentSettingsContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Configure settings for agent-based deployments to cloud-hosted Windows machines that cannot use WMI/SMB.
-      </p>
-      {settings && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Agent Registration Token
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Timestamp Format
               </label>
-              <input
-                type="text"
-                value={settings.agent?.registrationToken || ''}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    agent: { ...settings.agent, registrationToken: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono"
-                placeholder="Enter a secure token for agent registration"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Agents must provide this token to register. Leave empty to disable agent registration.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Poll Interval (seconds)
-              </label>
-              <input
-                type="number"
-                min={10}
-                max={300}
-                value={settings.agent?.pollIntervalSeconds || 30}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    agent: { ...settings.agent, pollIntervalSeconds: parseInt(e.target.value) || 30 },
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                How often agents poll for commands (10-300 seconds).
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="timestampFormat"
+                    value="local"
+                    checked={timestampFormat === 'local'}
+                    onChange={() => setTimestampFormat('local')}
+                    className="w-4 h-4 text-slate-600 focus:ring-slate-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Local Time</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="timestampFormat"
+                    value="utc"
+                    checked={timestampFormat === 'utc'}
+                    onChange={() => setTimestampFormat('utc')}
+                    className="w-4 h-4 text-slate-600 focus:ring-slate-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">UTC</span>
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Preview: {formatTimestamp(new Date(), { includeSeconds: true })}
               </p>
             </div>
           </div>
-
-          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <h4 className="font-medium text-purple-800 dark:text-purple-300 mb-2">Agent Setup Instructions</h4>
-            <ol className="list-decimal list-inside text-sm text-purple-700 dark:text-purple-400 space-y-1">
-              <li>Download the agent installer from the Releases page</li>
-              <li>Configure agent.json with this server's URL and the registration token above</li>
-              <li>Install the agent as a Windows service on target machines</li>
-              <li>The agent will register and appear in the Computers list as "Agent" source</li>
-            </ol>
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  const BinaryCacheContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        Download and cache multiple Sysmon versions for deployments.
-      </p>
-
-      {binaryCacheMessage && (
-        <div className={`p-4 rounded-lg ${
-          binaryCacheMessage.type === 'success'
-            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-            : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-        }`}>
-          {binaryCacheMessage.text}
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={downloadBinary}
-          disabled={downloadingBinary || uploadingBinary}
-          className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
-        >
-          {downloadingBinary ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Downloading...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download from URL
-            </>
-          )}
-        </button>
-        <label className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 cursor-pointer ${(uploadingBinary || downloadingBinary) ? 'opacity-50 pointer-events-none' : ''}`}>
-          {uploadingBinary ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Uploading...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              Upload from File
-            </>
-          )}
-          <input
-            type="file"
-            accept=".exe"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                uploadBinary(file);
-                e.target.value = '';
-              }
-            }}
-            disabled={uploadingBinary || downloadingBinary}
-          />
-        </label>
-      </div>
-
-      {/* Cached versions list */}
-      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-        {allCachedVersions.length === 0 ? (
-          <div className="text-center py-6">
-            <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <p className="text-sm text-yellow-600 dark:text-yellow-500 font-medium">
-              No Sysmon binaries cached
+        );
+      case 'authorization':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Configure Active Directory security groups for role-based access control.
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Download from the configured URL or upload a Sysmon executable file.
-            </p>
+            {settings && (
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Admin Group
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.authorization.adminGroup}
+                    onChange={(e) => updateAuthorization('adminGroup', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="SysmonPusher-Admins"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    AD group for full administrative access
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Operator Group
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.authorization.operatorGroup}
+                    onChange={(e) => updateAuthorization('operatorGroup', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="SysmonPusher-Operators"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    AD group for deployment and config management
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Viewer Group
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.authorization.viewerGroup}
+                    onChange={(e) => updateAuthorization('viewerGroup', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="SysmonPusher-Viewers"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    AD group for read-only access
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Default Role
+                  </label>
+                  <select
+                    value={settings.authorization.defaultRole}
+                    onChange={(e) => updateAuthorization('defaultRole', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="Viewer">Viewer</option>
+                    <option value="Operator">Operator</option>
+                    <option value="Admin">Admin</option>
+                    <option value="None">None (Deny access)</option>
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Role assigned when user doesn't match any group
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Cached Versions ({allCachedVersions.length})
-            </div>
-            {allCachedVersions.map((v, index) => (
-              <div
-                key={v.version}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  index === 0
-                    ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
-                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-600'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-slate-600 text-white rounded flex items-center justify-center text-xs font-bold">
-                    {v.version?.split('.')[0] || '?'}
-                  </div>
+        );
+      case 'deployment':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Configure Sysmon deployment behavior and paths.
+            </p>
+            {settings && (
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Sysmon Binary URL
+                  </label>
+                  <input
+                    type="url"
+                    value={settings.sysmonConfigPusher.sysmonBinaryUrl}
+                    onChange={(e) => updateSysmonConfigPusher('sysmonBinaryUrl', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="https://live.sysinternals.com/Sysmon.exe"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    URL to download Sysmon executable from
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Default Parallelism
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={settings.sysmonConfigPusher.defaultParallelism}
+                    onChange={(e) =>
+                      updateSysmonConfigPusher('defaultParallelism', parseInt(e.target.value) || 50)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Maximum concurrent deployment operations (1-500)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Remote Directory
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.sysmonConfigPusher.remoteDirectory}
+                    onChange={(e) => updateSysmonConfigPusher('remoteDirectory', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="C:\SysmonFiles"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Target directory on remote hosts for Sysmon files
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Audit Log Path (JSON)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.sysmonConfigPusher.auditLogPath}
+                    onChange={(e) => updateSysmonConfigPusher('auditLogPath', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="C:\Logs\sysmon-pusher-audit.json"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Path to write JSON audit log file. Leave empty to disable file logging.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'agent':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Configure settings for agent-based deployments to cloud-hosted Windows machines that cannot use WMI/SMB.
+            </p>
+            {settings && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        v{v.version || 'Unknown'}
-                      </span>
-                      {index === 0 && (
-                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 text-xs rounded">
-                          Latest
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {v.fileSizeBytes && `${(v.fileSizeBytes / 1024 / 1024).toFixed(2)} MB`}
-                      {v.cachedAt && ` • Cached ${new Date(v.cachedAt).toLocaleDateString()}`}
-                    </div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Agent Registration Token
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.agent?.registrationToken || ''}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          agent: { ...settings.agent, registrationToken: e.target.value },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-mono"
+                      placeholder="Enter a secure token for agent registration"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Agents must provide this token to register. Leave empty to disable agent registration.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Poll Interval (seconds)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={300}
+                      value={settings.agent?.pollIntervalSeconds || 30}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          agent: { ...settings.agent, pollIntervalSeconds: parseInt(e.target.value) || 30 },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      How often agents poll for commands (10-300 seconds).
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => v.version && deleteVersion(v.version)}
-                  disabled={deletingVersion === v.version}
-                  className="p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 disabled:opacity-50"
-                  title="Delete this version"
-                >
-                  {deletingVersion === v.version ? (
+
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <h4 className="font-medium text-purple-800 dark:text-purple-300 mb-2">Agent Setup Instructions</h4>
+                  <ol className="list-decimal list-inside text-sm text-purple-700 dark:text-purple-400 space-y-1">
+                    <li>Download the agent installer from the Releases page</li>
+                    <li>Configure agent.json with this server's URL and the registration token above</li>
+                    <li>Install the agent as a Windows service on target machines</li>
+                    <li>The agent will register and appear in the Computers list as "Agent" source</li>
+                  </ol>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      case 'binary-cache':
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Download and cache multiple Sysmon versions for deployments.
+            </p>
+
+            {binaryCacheMessage && (
+              <div className={`p-4 rounded-lg ${
+                binaryCacheMessage.type === 'success'
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+              }`}>
+                {binaryCacheMessage.text}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={downloadBinary}
+                disabled={downloadingBinary || uploadingBinary}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {downloadingBinary ? (
+                  <>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                  ) : (
+                    Downloading...
+                  </>
+                ) : (
+                  <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const TlsCertificateContent = () => (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        HTTPS certificate status. Configure certificates in appsettings.json.
-      </p>
-
-      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-        {tlsStatus ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                tlsStatus.isDevelopmentCertificate
-                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  : tlsStatus.isValid
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-              }`}>
-                {tlsStatus.isDevelopmentCertificate ? 'Development' : tlsStatus.isValid ? 'Valid' : 'Invalid'}
-              </span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {tlsStatus.configurationType}
-              </span>
+                    Download from URL
+                  </>
+                )}
+              </button>
+              <label className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 cursor-pointer ${(uploadingBinary || downloadingBinary) ? 'opacity-50 pointer-events-none' : ''}`}>
+                {uploadingBinary ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload from File
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept=".exe"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      uploadBinary(file);
+                      e.target.value = '';
+                    }
+                  }}
+                  disabled={uploadingBinary || downloadingBinary}
+                />
+              </label>
             </div>
 
-            {tlsStatus.errorMessage ? (
-              <p className="text-sm text-red-600 dark:text-red-400">{tlsStatus.errorMessage}</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                {tlsStatus.subject && (
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Subject:</span>
-                    <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
-                      {tlsStatus.subject}
-                    </span>
+            {/* Cached versions list */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              {allCachedVersions.length === 0 ? (
+                <div className="text-center py-6">
+                  <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-500 font-medium">
+                    No Sysmon binaries cached
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Download from the configured URL or upload a Sysmon executable file.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Cached Versions ({allCachedVersions.length})
                   </div>
-                )}
-                {tlsStatus.issuer && (
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Issuer:</span>
-                    <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
-                      {tlsStatus.issuer}
-                    </span>
-                  </div>
-                )}
-                {tlsStatus.notAfter && (
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Expires:</span>
-                    <span className={`ml-2 font-medium ${
-                      tlsStatus.daysUntilExpiry !== null && tlsStatus.daysUntilExpiry < 30
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-gray-700 dark:text-gray-300'
-                    }`}>
-                      {new Date(tlsStatus.notAfter).toLocaleDateString()}
-                      {tlsStatus.daysUntilExpiry !== null && (
-                        <span className="text-xs ml-1">
-                          ({tlsStatus.daysUntilExpiry} days)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                )}
-                {tlsStatus.thumbprint && (
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Thumbprint:</span>
-                    <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
-                      {tlsStatus.thumbprint.substring(0, 20)}...
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {tlsStatus.isDevelopmentCertificate && (
-              <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
-                Using ASP.NET Core development certificate. Configure a production certificate in appsettings.json for deployment.
-              </p>
-            )}
+                  {allCachedVersions.map((v, index) => (
+                    <div
+                      key={v.version}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        index === 0
+                          ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20'
+                          : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 bg-slate-600 text-white rounded flex items-center justify-center text-xs font-bold">
+                          {v.version?.split('.')[0] || '?'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-gray-100">
+                              v{v.version || 'Unknown'}
+                            </span>
+                            {index === 0 && (
+                              <span className="px-2 py-0.5 bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 text-xs rounded">
+                                Latest
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {v.fileSizeBytes && `${(v.fileSizeBytes / 1024 / 1024).toFixed(2)} MB`}
+                            {v.cachedAt && ` • Cached ${new Date(v.cachedAt).toLocaleDateString()}`}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => v.version && deleteVersion(v.version)}
+                        disabled={deletingVersion === v.version}
+                        className="p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 disabled:opacity-50"
+                        title="Delete this version"
+                      >
+                        {deletingVersion === v.version ? (
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">Loading TLS status...</p>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'display':
-        return <DisplaySettingsContent />;
-      case 'authorization':
-        return <AuthorizationSettingsContent />;
-      case 'deployment':
-        return <DeploymentSettingsContent />;
-      case 'agent':
-        return <AgentSettingsContent />;
-      case 'binary-cache':
-        return <BinaryCacheContent />;
+        );
       case 'tls':
-        return <TlsCertificateContent />;
+        return (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              HTTPS certificate status. Configure certificates in appsettings.json.
+            </p>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              {tlsStatus ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      tlsStatus.isDevelopmentCertificate
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : tlsStatus.isValid
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {tlsStatus.isDevelopmentCertificate ? 'Development' : tlsStatus.isValid ? 'Valid' : 'Invalid'}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {tlsStatus.configurationType}
+                    </span>
+                  </div>
+
+                  {tlsStatus.errorMessage ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">{tlsStatus.errorMessage}</p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      {tlsStatus.subject && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Subject:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                            {tlsStatus.subject}
+                          </span>
+                        </div>
+                      )}
+                      {tlsStatus.issuer && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Issuer:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                            {tlsStatus.issuer}
+                          </span>
+                        </div>
+                      )}
+                      {tlsStatus.notAfter && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Expires:</span>
+                          <span className={`ml-2 font-medium ${
+                            tlsStatus.daysUntilExpiry !== null && tlsStatus.daysUntilExpiry < 30
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-gray-700 dark:text-gray-300'
+                          }`}>
+                            {new Date(tlsStatus.notAfter).toLocaleDateString()}
+                            {tlsStatus.daysUntilExpiry !== null && (
+                              <span className="text-xs ml-1">
+                                ({tlsStatus.daysUntilExpiry} days)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      {tlsStatus.thumbprint && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">Thumbprint:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300 font-mono text-xs">
+                            {tlsStatus.thumbprint.substring(0, 20)}...
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {tlsStatus.isDevelopmentCertificate && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
+                      Using ASP.NET Core development certificate. Configure a production certificate in appsettings.json for deployment.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading TLS status...</p>
+              )}
+            </div>
+          </div>
+        );
       default:
         return null;
     }

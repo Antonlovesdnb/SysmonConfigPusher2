@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Core.Models;
 using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Service.Controllers;
@@ -15,6 +16,7 @@ public class AgentControllerTests : IDisposable
 {
     private readonly SysmonDbContext _db;
     private readonly Mock<ILogger<AgentController>> _mockLogger;
+    private readonly Mock<IAuditService> _mockAuditService;
     private readonly string _validToken = "test-registration-token";
 
     public AgentControllerTests()
@@ -24,6 +26,7 @@ public class AgentControllerTests : IDisposable
             .Options;
         _db = new SysmonDbContext(options);
         _mockLogger = new Mock<ILogger<AgentController>>();
+        _mockAuditService = new Mock<IAuditService>();
     }
 
     public void Dispose()
@@ -49,7 +52,7 @@ public class AgentControllerTests : IDisposable
             .AddInMemoryCollection(configDict)
             .Build();
 
-        return new AgentController(_db, _mockLogger.Object, config);
+        return new AgentController(_db, _mockLogger.Object, config, _mockAuditService.Object);
     }
 
     private AgentController CreateControllerWithHttpContext(string? authToken, string? agentId)

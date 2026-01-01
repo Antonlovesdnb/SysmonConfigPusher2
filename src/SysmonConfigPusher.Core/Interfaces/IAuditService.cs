@@ -51,5 +51,9 @@ public enum AuditAction
     // Settings operations
     SettingsUpdate,
     BinaryCacheUpdate,
-    ServiceRestart
+    ServiceRestart,
+
+    // Agent operations
+    AgentRegistration,
+    AgentCommandCompleted
 }

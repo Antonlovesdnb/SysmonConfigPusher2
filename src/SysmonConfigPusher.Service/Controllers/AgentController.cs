@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Core.Models;
+using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Shared;
 
 namespace SysmonConfigPusher.Service.Controllers;
@@ -20,15 +21,18 @@ public class AgentController : ControllerBase
     private readonly SysmonDbContext _db;
     private readonly ILogger<AgentController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IAuditService _auditService;
 
     public AgentController(
         SysmonDbContext db,
         ILogger<AgentController> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IAuditService auditService)
     {
         _db = db;
         _logger = logger;
         _configuration = configuration;
+        _auditService = auditService;
     }
 
     /// <summary>
@@ -82,6 +86,16 @@ public class AgentController : ControllerBase
             _logger.LogInformation("Agent re-registered: {Hostname} (Id: {Id})",
                 request.Hostname, existingComputer.Id);
 
+            await _auditService.LogAsync($"Agent:{request.Hostname}", AuditAction.AgentRegistration, new
+            {
+                Type = "Re-registration",
+                Hostname = request.Hostname,
+                AgentId = request.AgentId,
+                ComputerId = existingComputer.Id,
+                AgentVersion = request.AgentVersion,
+                Tags = request.Tags
+            });
+
             return Ok(new AgentRegistrationResponse
             {
                 Accepted = true,
@@ -112,6 +126,16 @@ public class AgentController : ControllerBase
             _logger.LogInformation("Computer {Hostname} converted to agent-managed (Id: {Id})",
                 request.Hostname, computerByHostname.Id);
 
+            await _auditService.LogAsync($"Agent:{request.Hostname}", AuditAction.AgentRegistration, new
+            {
+                Type = "ConvertedToAgent",
+                Hostname = request.Hostname,
+                AgentId = request.AgentId,
+                ComputerId = computerByHostname.Id,
+                AgentVersion = request.AgentVersion,
+                Tags = request.Tags
+            });
+
             return Ok(new AgentRegistrationResponse
             {
                 Accepted = true,
@@ -140,6 +164,16 @@ public class AgentController : ControllerBase
 
         _logger.LogInformation("New agent registered: {Hostname} (Id: {Id})",
             request.Hostname, newComputer.Id);
+
+        await _auditService.LogAsync($"Agent:{request.Hostname}", AuditAction.AgentRegistration, new
+        {
+            Type = "NewRegistration",
+            Hostname = request.Hostname,
+            AgentId = request.AgentId,
+            ComputerId = newComputer.Id,
+            AgentVersion = request.AgentVersion,
+            Tags = request.Tags
+        });
 
         return Ok(new AgentRegistrationResponse
         {
@@ -277,6 +311,17 @@ public class AgentController : ControllerBase
 
         _logger.LogInformation("Command {CommandId} completed with status {Status}",
             result.CommandId, result.Status);
+
+        await _auditService.LogAsync($"Agent:{computer.Hostname}", AuditAction.AgentCommandCompleted, new
+        {
+            CommandId = result.CommandId,
+            CommandType = command.CommandType,
+            ComputerId = computer.Id,
+            Hostname = computer.Hostname,
+            Status = result.Status.ToString(),
+            Message = result.Message,
+            DeploymentJobId = command.DeploymentJobId
+        });
 
         return Ok();
     }
