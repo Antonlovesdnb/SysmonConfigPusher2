@@ -51,8 +51,8 @@ public class InventoryScanWorker : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<SysmonDbContext>();
         var remoteExec = scope.ServiceProvider.GetRequiredService<IRemoteExecutionService>();
 
-        // Get computers to scan
-        IQueryable<Core.Models.Computer> query = db.Computers;
+        // Get computers to scan (exclude agent-managed - they report status via heartbeat)
+        IQueryable<Core.Models.Computer> query = db.Computers.Where(c => !c.IsAgentManaged);
         if (!request.ScanAll && request.ComputerIds != null)
         {
             query = query.Where(c => request.ComputerIds.Contains(c.Id));
@@ -60,7 +60,32 @@ public class InventoryScanWorker : BackgroundService
 
         var computers = await query.ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Starting inventory scan for {Count} computers", computers.Count);
+        // For agent-managed computers, queue a GetStatus command instead
+        var agentQuery = db.Computers.Where(c => c.IsAgentManaged);
+        if (!request.ScanAll && request.ComputerIds != null)
+        {
+            agentQuery = agentQuery.Where(c => request.ComputerIds.Contains(c.Id));
+        }
+        var agentComputers = await agentQuery.ToListAsync(cancellationToken);
+
+        if (agentComputers.Count > 0)
+        {
+            _logger.LogInformation("Updating status for {Count} agent-managed computers", agentComputers.Count);
+            foreach (var agent in agentComputers)
+            {
+                // Agent heartbeats already provide status, so just mark as recently checked
+                // The next heartbeat will update the status
+                agent.LastInventoryScan = DateTime.UtcNow;
+                agent.LastScanStatus = agent.AgentLastHeartbeat.HasValue &&
+                    (DateTime.UtcNow - agent.AgentLastHeartbeat.Value).TotalMinutes < 5
+                    ? "Online" : "Offline";
+            }
+            // Save agent updates immediately
+            await db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Agent-managed computers updated");
+        }
+
+        _logger.LogInformation("Starting inventory scan for {Count} WMI computers", computers.Count);
 
         var scanned = 0;
         var succeeded = 0;
@@ -111,6 +136,7 @@ public class InventoryScanWorker : BackgroundService
 
         await db.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Inventory scan completed: {Succeeded}/{Scanned} succeeded", succeeded, scanned);
+        _logger.LogInformation("Inventory scan completed: {Succeeded}/{Scanned} WMI scans succeeded, {AgentCount} agent-managed computers updated",
+            succeeded, scanned, agentComputers.Count);
     }
 }

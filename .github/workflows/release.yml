@@ -5,13 +5,25 @@ on:
     tags:
       - 'v*'
 
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
-  build:
+  build-and-release:
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Extracted version: $version"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -23,6 +35,7 @@ jobs:
         with:
           node-version: '20'
 
+      # Build frontend
       - name: Install frontend dependencies
         run: npm ci
         working-directory: src/SysmonConfigPusher.Web
@@ -31,22 +44,92 @@ jobs:
         run: npm run build
         working-directory: src/SysmonConfigPusher.Web
 
+      # Restore and build
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Publish backend
-        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -o publish
+      - name: Run tests
+        run: dotnet test --configuration Release --verbosity normal
 
-      - name: Build MSI
+      # Publish Service
+      - name: Publish Service
+        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -o publish/service -p:Version=${{ steps.version.outputs.VERSION }}
+
+      # Publish Agent
+      - name: Publish Agent
+        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true -o publish/agent -p:Version=${{ steps.version.outputs.VERSION }}
+
+      # Build MSI installers
+      - name: Build Service MSI
         working-directory: installer
-        run: dotnet build -c Release
+        run: dotnet build -c Release -p:Version=${{ steps.version.outputs.VERSION }}
 
+      - name: Build Agent MSI
+        working-directory: installer/agent
+        run: dotnet build -c Release -p:Version=${{ steps.version.outputs.VERSION }}
+
+      # Rename MSIs to include version
+      - name: Rename MSI files
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+
+          # Service MSI
+          $serviceMsi = Get-ChildItem -Path "installer/bin/Release" -Filter "*.msi" | Select-Object -First 1
+          if ($serviceMsi) {
+            $newName = "SysmonConfigPusher-$version.msi"
+            Rename-Item -Path $serviceMsi.FullName -NewName $newName
+            echo "Renamed service MSI to: $newName"
+          }
+
+          # Agent MSI
+          $agentMsi = Get-ChildItem -Path "installer/agent/bin/Release" -Filter "*.msi" | Select-Object -First 1
+          if ($agentMsi) {
+            $newName = "SysmonConfigPusherAgent-$version.msi"
+            Rename-Item -Path $agentMsi.FullName -NewName $newName
+            echo "Renamed agent MSI to: $newName"
+          }
+
+      # Create Draft Release
       - name: Create Draft Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: installer/bin/Release/SysmonConfigPusher.msi
+          files: |
+            installer/bin/Release/*.msi
+            installer/agent/bin/Release/*.msi
           draft: true
           generate_release_notes: true
           name: ${{ github.ref_name }}
+          body: |
+            ## Downloads
+
+            | File | Description |
+            |------|-------------|
+            | `SysmonConfigPusher-${{ steps.version.outputs.VERSION }}.msi` | Server/Management Console installer |
+            | `SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi` | Agent installer for cloud endpoints |
+
+            ## Installation
+
+            ### Server
+            1. Download and run `SysmonConfigPusher-${{ steps.version.outputs.VERSION }}.msi` on your management server
+            2. Configure settings in `appsettings.json`
+            3. Start the service: `Start-Service SysmonConfigPusher`
+
+            ### Agent (for cloud endpoints)
+            1. Download `SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi`
+            2. Install with: `msiexec /i SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi SERVER_URL=https://your-server:5001 REGISTRATION_TOKEN=your-token`
+
+            ## What's Changed
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload artifacts for debugging
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-${{ steps.version.outputs.VERSION }}
+          path: |
+            installer/bin/Release/*.msi
+            installer/agent/bin/Release/*.msi
+          retention-days: 30

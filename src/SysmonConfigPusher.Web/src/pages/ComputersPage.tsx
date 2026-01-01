@@ -4,11 +4,13 @@ import { computersApi } from '../api';
 import type { Computer } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useUserPreferences } from '../context/UserPreferencesContext';
 
 export function ComputersPage() {
   const navigate = useNavigate();
   const { canDeploy } = useAuth();
   const { showToast } = useToast();
+  const { formatTimestamp } = useUserPreferences();
   const [computers, setComputers] = useState<Computer[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -259,6 +261,9 @@ export function ComputersPage() {
                     Hostname
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Source
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Operating System
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -293,6 +298,27 @@ export function ComputersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                       {computer.hostname}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-wrap items-center gap-1">
+                        {computer.isAgentManaged ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-400" title={`Agent v${computer.agentVersion || 'unknown'}`}>
+                            Agent
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                            WMI/SMB
+                          </span>
+                        )}
+                        {computer.agentTags?.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-400"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {computer.operatingSystem || '-'}
                     </td>
@@ -324,7 +350,7 @@ export function ComputersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {computer.lastInventoryScan
-                        ? new Date(computer.lastInventoryScan).toLocaleString()
+                        ? formatTimestamp(computer.lastInventoryScan)
                         : '-'}
                     </td>
                   </tr>

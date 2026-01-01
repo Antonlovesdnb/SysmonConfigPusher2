@@ -74,7 +74,13 @@ public class ComputersController : ControllerBase
                 c.ConfigHash,
                 c.ConfigTag,
                 c.LastDeployment,
-                c.LastInventoryScan))
+                c.LastInventoryScan,
+                c.LastScanStatus,
+                c.IsAgentManaged,
+                c.AgentId,
+                c.AgentVersion,
+                c.AgentLastHeartbeat,
+                c.AgentTags != null ? c.AgentTags.Split(',', StringSplitOptions.RemoveEmptyEntries) : null))
             .ToListAsync();
 
         return Ok(new ComputerListResponse(computers, totalCount, skip, take));
@@ -98,7 +104,13 @@ public class ComputersController : ControllerBase
             computer.ConfigHash,
             computer.ConfigTag,
             computer.LastDeployment,
-            computer.LastInventoryScan));
+            computer.LastInventoryScan,
+            computer.LastScanStatus,
+            computer.IsAgentManaged,
+            computer.AgentId,
+            computer.AgentVersion,
+            computer.AgentLastHeartbeat,
+            computer.AgentTags?.Split(',', StringSplitOptions.RemoveEmptyEntries)));
     }
 
     [HttpPost("refresh")]
@@ -173,13 +185,27 @@ public class ComputersController : ControllerBase
             new ParallelOptions { MaxDegreeOfParallelism = 10, CancellationToken = cancellationToken },
             async (computer, ct) =>
             {
-                var reachable = await remoteExec.TestConnectivityAsync(computer.Hostname, ct);
+                bool reachable;
+                string message;
+
+                if (computer.IsAgentManaged)
+                {
+                    // For agent-managed computers, check if agent has sent a heartbeat recently
+                    reachable = computer.AgentLastHeartbeat.HasValue &&
+                        (DateTime.UtcNow - computer.AgentLastHeartbeat.Value).TotalMinutes < 5;
+                    message = reachable
+                        ? $"Agent online (last heartbeat: {computer.AgentLastHeartbeat:HH:mm:ss})"
+                        : "Agent offline or no recent heartbeat";
+                }
+                else
+                {
+                    reachable = await remoteExec.TestConnectivityAsync(computer.Hostname, ct);
+                    message = reachable ? "WMI connection successful" : "WMI connection failed";
+                }
+
                 lock (results)
                 {
-                    results.Add(new ConnectivityResultDto(
-                        computer.Id,
-                        reachable,
-                        reachable ? "WMI connection successful" : "WMI connection failed"));
+                    results.Add(new ConnectivityResultDto(computer.Id, reachable, message));
                 }
             });
 
@@ -277,7 +303,13 @@ public record ComputerDto(
     string? ConfigHash,
     string? ConfigTag,
     DateTime? LastDeployment,
-    DateTime? LastInventoryScan);
+    DateTime? LastInventoryScan,
+    string? LastScanStatus,
+    bool IsAgentManaged = false,
+    string? AgentId = null,
+    string? AgentVersion = null,
+    DateTime? AgentLastHeartbeat = null,
+    string[]? AgentTags = null);
 
 public record ComputerGroupDto(
     int Id,

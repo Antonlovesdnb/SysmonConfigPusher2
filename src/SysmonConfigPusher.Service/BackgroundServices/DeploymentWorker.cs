@@ -1,9 +1,11 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SysmonConfigPusher.Core.Interfaces;
 using SysmonConfigPusher.Core.Models;
 using SysmonConfigPusher.Data;
 using SysmonConfigPusher.Service.Hubs;
+using SysmonConfigPusher.Shared;
 
 namespace SysmonConfigPusher.Service.BackgroundServices;
 
@@ -124,6 +126,8 @@ public class DeploymentWorker : BackgroundService
                         result.Computer,
                         job.Config,
                         job.SysmonVersion,
+                        job.Id,
+                        db,
                         remoteExec,
                         fileTransfer,
                         ct);
@@ -181,10 +185,18 @@ public class DeploymentWorker : BackgroundService
         Computer computer,
         Config? config,
         string? sysmonVersion,
+        int jobId,
+        SysmonDbContext db,
         IRemoteExecutionService remoteExec,
         IFileTransferService fileTransfer,
         CancellationToken cancellationToken)
     {
+        // For agent-managed computers, queue commands instead of using WMI/SMB
+        if (computer.IsAgentManaged)
+        {
+            return await QueueAgentCommandAsync(operation, computer, config, sysmonVersion, jobId, db, cancellationToken);
+        }
+
         return operation.ToLowerInvariant() switch
         {
             "install" => await InstallSysmonAsync(computer, config, sysmonVersion, remoteExec, fileTransfer, cancellationToken),
@@ -193,6 +205,93 @@ public class DeploymentWorker : BackgroundService
             "test" => await TestConnectivityAsync(computer.Hostname, remoteExec, cancellationToken),
             _ => (false, $"Unknown operation: {operation}")
         };
+    }
+
+    private async Task<(bool Success, string? Message)> QueueAgentCommandAsync(
+        string operation,
+        Computer computer,
+        Config? config,
+        string? sysmonVersion,
+        int jobId,
+        SysmonDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var commandType = operation.ToLowerInvariant() switch
+        {
+            "install" => AgentCommandType.InstallSysmon,
+            "update" or "pushconfig" => AgentCommandType.UpdateConfig,
+            "uninstall" => AgentCommandType.UninstallSysmon,
+            "test" => AgentCommandType.GetStatus,
+            _ => throw new ArgumentException($"Unknown operation: {operation}")
+        };
+
+        // Build the payload based on operation type
+        string? payload = null;
+
+        if (commandType == AgentCommandType.InstallSysmon)
+        {
+            // Get the Sysmon binary and encode as base64
+            string? binaryPath;
+            if (!string.IsNullOrEmpty(sysmonVersion))
+            {
+                binaryPath = _binaryCacheService.GetCachePath(sysmonVersion);
+                if (string.IsNullOrEmpty(binaryPath))
+                    return (false, $"Sysmon version {sysmonVersion} not found in cache.");
+            }
+            else
+            {
+                if (!_binaryCacheService.IsCached)
+                    return (false, "Sysmon binary not found in cache. Download it from the Settings page first.");
+                binaryPath = _binaryCacheService.CachePath;
+            }
+
+            var binaryBytes = await File.ReadAllBytesAsync(binaryPath, cancellationToken);
+            var binaryBase64 = Convert.ToBase64String(binaryBytes);
+
+            // Config is optional for install - Sysmon can be installed without a config
+            var installPayload = new InstallSysmonPayload
+            {
+                SysmonBinaryBase64 = binaryBase64,
+                ConfigXml = config?.Content,
+                Use64Bit = true,
+                ConfigHash = config?.Hash
+            };
+            payload = JsonSerializer.Serialize(installPayload);
+        }
+        else if (commandType == AgentCommandType.UpdateConfig)
+        {
+            if (config == null)
+            {
+                return (false, "No config specified");
+            }
+
+            var updatePayload = new UpdateConfigPayload
+            {
+                ConfigXml = config.Content,
+                ConfigHash = config.Hash
+            };
+            payload = JsonSerializer.Serialize(updatePayload);
+        }
+
+        // Create pending command
+        var pendingCommand = new AgentPendingCommand
+        {
+            ComputerId = computer.Id,
+            CommandId = Guid.NewGuid().ToString(),
+            CommandType = commandType.ToString(),
+            Payload = payload,
+            CreatedAt = DateTime.UtcNow,
+            DeploymentJobId = jobId
+        };
+
+        db.AgentPendingCommands.Add(pendingCommand);
+        await db.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Queued {CommandType} command for agent-managed host {Hostname} (CommandId: {CommandId})",
+            commandType, computer.Hostname, pendingCommand.CommandId);
+
+        // Return success - the actual result will come later via agent heartbeat
+        return (true, $"Command queued for agent (will complete on next heartbeat)");
     }
 
     private async Task<(bool, string?)> InstallSysmonAsync(

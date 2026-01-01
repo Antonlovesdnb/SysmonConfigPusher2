@@ -1,0 +1,8 @@
+{
+  "serverUrl": "https://your-server:5001",
+  "registrationToken": "your-registration-token-here",
+  "pollIntervalSeconds": 30,
+  "tags": ["cloud", "azure"],
+  "validateServerCertificate": true,
+  "certificateThumbprint": null
+}

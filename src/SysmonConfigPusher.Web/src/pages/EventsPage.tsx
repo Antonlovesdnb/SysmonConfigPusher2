@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { computersApi, eventsApi } from '../api';
 import type { Computer, SysmonEvent, EventQueryRequest } from '../types';
 import { SYSMON_EVENT_TYPES } from '../types';
+import { useUserPreferences } from '../context/UserPreferencesContext';
 
 export function EventsPage() {
+  const { formatTimestamp } = useUserPreferences();
   const [computers, setComputers] = useState<Computer[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [events, setEvents] = useState<SysmonEvent[]>([]);
@@ -169,7 +171,7 @@ export function EventsPage() {
   };
 
   const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+    return formatTimestamp(dateStr, { includeSeconds: true });
   };
 
   return (

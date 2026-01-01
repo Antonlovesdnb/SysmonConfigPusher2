@@ -40,7 +40,9 @@ public class AnalysisController : ControllerBase
 
         if (!result.Success)
         {
-            return BadRequest(new NoiseAnalysisResponse(
+            // Return 200 OK with Success=false - this isn't a client error, just an analysis failure
+            // (e.g., agent-managed computers don't support noise analysis yet)
+            return Ok(new NoiseAnalysisResponse(
                 false, null, [], [], result.ErrorMessage));
         }
 

@@ -4,10 +4,12 @@ import { deploymentsApi } from '../api';
 import type { DeploymentJob } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useUserPreferences } from '../context/UserPreferencesContext';
 
 export function DeploymentsPage() {
   const { isAdmin } = useAuth();
   const { showToast } = useToast();
+  const { formatTimestamp } = useUserPreferences();
   const [jobs, setJobs] = useState<DeploymentJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,7 +238,7 @@ export function DeploymentsPage() {
                         {job.startedBy || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(job.startedAt).toLocaleString()}
+                        {formatTimestamp(job.startedAt)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         <Link

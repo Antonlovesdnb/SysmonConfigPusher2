@@ -41,11 +41,30 @@ jobs:
         working-directory: src/SysmonConfigPusher.Web
         run: npm run build
 
+      # Publish the service
+      - name: Publish Service
+        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -o publish/service
+
+      # Publish the agent
+      - name: Publish Agent
+        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true -o publish/agent
+
+      # Build MSI installers (requires WiX Toolset)
+      - name: Build Service MSI
+        working-directory: installer
+        run: dotnet build -c Release
+
+      - name: Build Agent MSI
+        working-directory: installer/agent
+        run: dotnet build -c Release
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-output
           path: |
-            src/SysmonConfigPusher.Service/bin/Release/net8.0/
-            src/SysmonConfigPusher.Service/wwwroot/
+            publish/service/
+            publish/agent/
+            installer/bin/Release/*.msi
+            installer/agent/bin/Release/*.msi
           retention-days: 7

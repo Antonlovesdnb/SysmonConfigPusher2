@@ -19,6 +19,38 @@ public class Computer
     /// </summary>
     public string? LastScanStatus { get; set; }
 
+    // Agent-related properties
+    /// <summary>
+    /// Whether this computer is managed via an agent (true) or WMI/SMB (false)
+    /// </summary>
+    public bool IsAgentManaged { get; set; }
+
+    /// <summary>
+    /// Unique agent ID for agent-managed computers
+    /// </summary>
+    public string? AgentId { get; set; }
+
+    /// <summary>
+    /// Agent version for agent-managed computers
+    /// </summary>
+    public string? AgentVersion { get; set; }
+
+    /// <summary>
+    /// Last heartbeat received from agent
+    /// </summary>
+    public DateTime? AgentLastHeartbeat { get; set; }
+
+    /// <summary>
+    /// Agent authentication token
+    /// </summary>
+    public string? AgentAuthToken { get; set; }
+
+    /// <summary>
+    /// Comma-separated tags for agent-managed computers
+    /// </summary>
+    public string? AgentTags { get; set; }
+
     public ICollection<ComputerGroupMember> GroupMemberships { get; set; } = [];
     public ICollection<DeploymentResult> DeploymentResults { get; set; } = [];
+    public ICollection<AgentPendingCommand> PendingCommands { get; set; } = [];
 }

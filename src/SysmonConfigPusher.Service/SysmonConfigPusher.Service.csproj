@@ -4,6 +4,7 @@
     <ProjectReference Include="..\SysmonConfigPusher.Core\SysmonConfigPusher.Core.csproj" />
     <ProjectReference Include="..\SysmonConfigPusher.Infrastructure\SysmonConfigPusher.Infrastructure.csproj" />
     <ProjectReference Include="..\SysmonConfigPusher.Data\SysmonConfigPusher.Data.csproj" />
+    <ProjectReference Include="..\SysmonConfigPusher.Shared\SysmonConfigPusher.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

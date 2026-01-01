@@ -20,6 +20,7 @@ public class SysmonDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ScheduledDeployment> ScheduledDeployments => Set<ScheduledDeployment>();
     public DbSet<ScheduledDeploymentComputer> ScheduledDeploymentComputers => Set<ScheduledDeploymentComputer>();
+    public DbSet<AgentPendingCommand> AgentPendingCommands => Set<AgentPendingCommand>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,8 @@ public class SysmonDbContext : DbContext
             entity.HasIndex(e => e.Hostname).IsUnique();
             entity.HasIndex(e => e.ConfigHash);
             entity.HasIndex(e => e.LastInventoryScan);
+            entity.HasIndex(e => e.AgentId);
+            entity.HasIndex(e => e.IsAgentManaged);
         });
 
         // ComputerGroupMember - composite key
@@ -141,6 +144,24 @@ public class SysmonDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.ScheduledDeploymentId, e.ComputerId }).IsUnique();
+        });
+
+        // AgentPendingCommand
+        modelBuilder.Entity<AgentPendingCommand>(entity =>
+        {
+            entity.HasOne(e => e.Computer)
+                .WithMany(c => c.PendingCommands)
+                .HasForeignKey(e => e.ComputerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.DeploymentJob)
+                .WithMany()
+                .HasForeignKey(e => e.DeploymentJobId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.CommandId).IsUnique();
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.CompletedAt);
         });
     }
 }

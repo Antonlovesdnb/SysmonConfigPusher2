@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="SysmonConfigPusher Agent"
+           Manufacturer="SysmonConfigPusher"
+           Version="2.1.0.0"
+           UpgradeCode="F9A8B7C6-1D2E-3F4A-5B6C-7D8E9F0A1B2C"
+           Scope="perMachine">
+
+    <SummaryInformation Description="SysmonConfigPusher Agent - Lightweight agent for managing Sysmon on cloud-hosted Windows machines" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!--
+    Properties for configuration - can be set via command line:
+    msiexec /i Agent.msi SERVER_URL=https://server:5001 REGISTRATION_TOKEN=mytoken SKIP_CERT_VALIDATION=1
+    -->
+    <Property Id="SERVER_URL" Secure="yes" />
+    <Property Id="REGISTRATION_TOKEN" Secure="yes" />
+    <Property Id="SKIP_CERT_VALIDATION" Value="1" Secure="yes" />
+    <Property Id="POLL_INTERVAL" Value="30" Secure="yes" />
+    <Property Id="AGENT_TAGS" Secure="yes" />
+
+    <!-- Installation directory -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="SysmonConfigPusher">
+        <Directory Id="AgentFolder" Name="Agent" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Agent executable and service -->
+    <ComponentGroup Id="AgentFiles" Directory="AgentFolder">
+      <Component Id="AgentExe" Guid="E1F2A3B4-C5D6-7E8F-9A0B-1C2D3E4F5A6B">
+        <File Id="SysmonConfigPusherAgentExe"
+              Source="$(PublishDir)\SysmonConfigPusher.Agent.exe"
+              KeyPath="yes" />
+
+        <ServiceInstall Id="AgentService"
+                        Name="SysmonConfigPusherAgent"
+                        DisplayName="SysmonConfigPusher Agent"
+                        Description="Lightweight agent for SysmonConfigPusher - manages Sysmon configurations on cloud-hosted Windows machines."
+                        Type="ownProcess"
+                        Start="auto"
+                        ErrorControl="normal"
+                        Account="LocalSystem" />
+
+        <ServiceControl Id="StartAgentService"
+                        Name="SysmonConfigPusherAgent"
+                        Start="install"
+                        Stop="both"
+                        Remove="uninstall"
+                        Wait="yes" />
+      </Component>
+
+      <!-- Config writer script -->
+      <Component Id="ConfigScript" Guid="E2F3A4B5-C6D7-8E9F-0A1B-2C3D4E5F6A7B">
+        <File Id="WriteConfigPs1"
+              Source="write-config.ps1"
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- Custom action to write config file using PowerShell -->
+    <SetProperty Id="WriteAgentConfig"
+                 Value="&quot;powershell.exe&quot; -ExecutionPolicy Bypass -File &quot;[AgentFolder]write-config.ps1&quot; -ServerUrl &quot;[SERVER_URL]&quot; -RegistrationToken &quot;[REGISTRATION_TOKEN]&quot; -SkipCertValidation [SKIP_CERT_VALIDATION] -PollInterval [POLL_INTERVAL] -Tags &quot;[AGENT_TAGS]&quot; -OutputPath &quot;[AgentFolder]agent.json&quot;"
+                 Before="WriteAgentConfig"
+                 Sequence="execute" />
+
+    <CustomAction Id="WriteAgentConfig"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec64"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />
+
+    <InstallExecuteSequence>
+      <Custom Action="WriteAgentConfig" After="InstallFiles" Condition="NOT Installed AND SERVER_URL AND REGISTRATION_TOKEN" />
+    </InstallExecuteSequence>
+
+    <!-- UI -->
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <!-- Custom dialog reference -->
+    <UIRef Id="AgentConfigUI" />
+
+    <!-- Feature -->
+    <Feature Id="ProductFeature" Title="SysmonConfigPusher Agent" Level="1">
+      <ComponentGroupRef Id="AgentFiles" />
+    </Feature>
+
+  </Package>
+</Wix>

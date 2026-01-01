@@ -127,7 +127,7 @@ export function DeployWizardPage() {
   const nextStep = () => {
     if (step === 'computers') setStep('operation');
     else if (step === 'operation') {
-      if (selectedOperation?.requiresConfig) {
+      if (selectedOperation?.showConfigStep) {
         setStep('config');
       } else {
         setStep('confirm');
@@ -139,7 +139,7 @@ export function DeployWizardPage() {
     if (step === 'operation') setStep('computers');
     else if (step === 'config') setStep('operation');
     else if (step === 'confirm') {
-      if (selectedOperation?.requiresConfig) {
+      if (selectedOperation?.showConfigStep) {
         setStep('config');
       } else {
         setStep('operation');
@@ -424,45 +424,69 @@ export function DeployWizardPage() {
 
         {step === 'config' && (
           <div>
-            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Select Configuration</h2>
-            {configs.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                No configs available. Please upload a config first.
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {configs.map((config) => (
-                  <label
-                    key={config.id}
-                    className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
-                      configId === config.id
-                        ? 'border-slate-500 bg-slate-50 dark:bg-slate-800 dark:border-slate-600'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="config"
-                      value={config.id}
-                      checked={configId === config.id}
-                      onChange={() => setConfigId(config.id)}
-                      className="mt-1 w-4 h-4 accent-slate-600"
-                    />
-                    <div className="ml-3">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">{config.filename}</div>
-                      {config.tag && (
-                        <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-xs mt-1">
-                          {config.tag}
-                        </span>
-                      )}
-                      <div className="text-xs text-gray-400 dark:text-gray-500 font-mono mt-1">
-                        {config.hash.substring(0, 16)}...
-                      </div>
+            <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Select Configuration
+              {!selectedOperation?.requiresConfig && (
+                <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">(Optional)</span>
+              )}
+            </h2>
+            <div className="grid gap-4">
+              {/* No config option - only shown when config is optional */}
+              {!selectedOperation?.requiresConfig && (
+                <label
+                  className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
+                    configId === null
+                      ? 'border-slate-500 bg-slate-50 dark:bg-slate-800 dark:border-slate-600'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="config"
+                    value=""
+                    checked={configId === null}
+                    onChange={() => setConfigId(null)}
+                    className="mt-1 w-4 h-4 accent-slate-600"
+                  />
+                  <div className="ml-3">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">No configuration</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Install Sysmon without a config file (uses default settings)
                     </div>
-                  </label>
-                ))}
-              </div>
-            )}
+                  </div>
+                </label>
+              )}
+              {configs.map((config) => (
+                <label
+                  key={config.id}
+                  className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
+                    configId === config.id
+                      ? 'border-slate-500 bg-slate-50 dark:bg-slate-800 dark:border-slate-600'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="config"
+                    value={config.id}
+                    checked={configId === config.id}
+                    onChange={() => setConfigId(config.id)}
+                    className="mt-1 w-4 h-4 accent-slate-600"
+                  />
+                  <div className="ml-3">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">{config.filename}</div>
+                    {config.tag && (
+                      <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-xs mt-1">
+                        {config.tag}
+                      </span>
+                    )}
+                    <div className="text-xs text-gray-400 dark:text-gray-500 font-mono mt-1">
+                      {config.hash.substring(0, 16)}...
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
         )}
 

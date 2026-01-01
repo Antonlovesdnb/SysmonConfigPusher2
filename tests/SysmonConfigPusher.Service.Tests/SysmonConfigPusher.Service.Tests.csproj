@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\SysmonConfigPusher.Service\SysmonConfigPusher.Service.csproj" />
     <ProjectReference Include="..\..\src\SysmonConfigPusher.Core\SysmonConfigPusher.Core.csproj" />
     <ProjectReference Include="..\..\src\SysmonConfigPusher.Data\SysmonConfigPusher.Data.csproj" />
+    <ProjectReference Include="..\..\src\SysmonConfigPusher.Shared\SysmonConfigPusher.Shared.csproj" />
   </ItemGroup>
 
 </Project>

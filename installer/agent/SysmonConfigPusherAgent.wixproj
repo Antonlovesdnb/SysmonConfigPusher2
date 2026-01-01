@@ -1,0 +1,15 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Package</OutputType>
+    <InstallerPlatform>x64</InstallerPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>PublishDir=..\..\src\SysmonConfigPusher.Agent\bin\Release\net8.0-windows\win-x64\publish\</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

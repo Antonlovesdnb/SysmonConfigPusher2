@@ -2,11 +2,18 @@
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>PublishDir=..\publish\</DefineConstants>
+    <DefineConstants>PublishDir=C:\SysmonConfigPusher2\src\SysmonConfigPusher.Service\bin\Release\net8.0\win-x64\publish\</DefineConstants>
+    <EnableDefaultWixSourceItems>false</EnableDefaultWixSourceItems>
+    <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="WixToolset.Firewall.wixext" Version="5.0.2" />
     <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <!-- Only include server Package.wxs -->
+  <ItemGroup>
+    <Compile Include="Package.wxs" />
   </ItemGroup>
 </Project>

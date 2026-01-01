@@ -57,6 +57,7 @@ public class SettingsController : ControllerBase
 
             var authorization = root["Authorization"];
             var sysmonConfigPusher = root["SysmonConfigPusher"];
+            var agent = root["Agent"];
 
             return Ok(new AppSettingsDto
             {
@@ -73,6 +74,11 @@ public class SettingsController : ControllerBase
                     DefaultParallelism = sysmonConfigPusher?["DefaultParallelism"]?.GetValue<int>() ?? 50,
                     RemoteDirectory = sysmonConfigPusher?["RemoteDirectory"]?.GetValue<string>() ?? "C:\\SysmonFiles",
                     AuditLogPath = sysmonConfigPusher?["AuditLogPath"]?.GetValue<string>() ?? ""
+                },
+                Agent = new AgentSettingsDto
+                {
+                    RegistrationToken = agent?["RegistrationToken"]?.GetValue<string>() ?? "",
+                    PollIntervalSeconds = agent?["PollIntervalSeconds"]?.GetValue<int>() ?? 30
                 }
             });
         }
@@ -101,6 +107,7 @@ public class SettingsController : ControllerBase
             // Capture old values for audit
             var oldAuthorization = root["Authorization"]?.ToJsonString();
             var oldSysmonConfigPusher = root["SysmonConfigPusher"]?.ToJsonString();
+            var oldAgent = root["Agent"]?.ToJsonString();
 
             // Update Authorization section
             root["Authorization"] = new JsonObject
@@ -120,6 +127,13 @@ public class SettingsController : ControllerBase
                 ["AuditLogPath"] = settings.SysmonConfigPusher.AuditLogPath
             };
 
+            // Update Agent section
+            root["Agent"] = new JsonObject
+            {
+                ["RegistrationToken"] = settings.Agent.RegistrationToken,
+                ["PollIntervalSeconds"] = settings.Agent.PollIntervalSeconds
+            };
+
             // Write back with proper formatting
             var options = new JsonSerializerOptions { WriteIndented = true };
             var updatedJson = root.ToJsonString(options);
@@ -131,7 +145,9 @@ public class SettingsController : ControllerBase
                 OldAuthorization = oldAuthorization,
                 NewAuthorization = root["Authorization"]?.ToJsonString(),
                 OldSysmonConfigPusher = oldSysmonConfigPusher,
-                NewSysmonConfigPusher = root["SysmonConfigPusher"]?.ToJsonString()
+                NewSysmonConfigPusher = root["SysmonConfigPusher"]?.ToJsonString(),
+                OldAgent = oldAgent,
+                NewAgent = root["Agent"]?.ToJsonString()
             });
 
             _logger.LogInformation("User {User} updated application settings", User.Identity?.Name);
@@ -443,6 +459,13 @@ public class AppSettingsDto
 {
     public AuthorizationSettingsDto Authorization { get; set; } = new();
     public SysmonConfigPusherSettingsDto SysmonConfigPusher { get; set; } = new();
+    public AgentSettingsDto Agent { get; set; } = new();
+}
+
+public class AgentSettingsDto
+{
+    public string RegistrationToken { get; set; } = "";
+    public int PollIntervalSeconds { get; set; } = 30;
 }
 
 public class AuthorizationSettingsDto

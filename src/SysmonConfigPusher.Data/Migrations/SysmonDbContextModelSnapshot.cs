@@ -17,6 +17,66 @@ namespace SysmonConfigPusher.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.22");
 
+            modelBuilder.Entity("SysmonConfigPusher.Core.Models.AgentPendingCommand", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CommandId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ComputerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DeploymentJobId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InitiatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultPayload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultStatus")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommandId")
+                        .IsUnique();
+
+                    b.HasIndex("CompletedAt");
+
+                    b.HasIndex("ComputerId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("DeploymentJobId");
+
+                    b.ToTable("AgentPendingCommands");
+                });
+
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.AuditLog", b =>
                 {
                     b.Property<int>("Id")
@@ -51,6 +111,21 @@ namespace SysmonConfigPusher.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AgentAuthToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("AgentLastHeartbeat")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentTags")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentVersion")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ConfigHash")
                         .HasColumnType("TEXT");
 
@@ -63,6 +138,9 @@ namespace SysmonConfigPusher.Data.Migrations
                     b.Property<string>("Hostname")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsAgentManaged")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("LastDeployment")
                         .HasColumnType("TEXT");
@@ -87,10 +165,14 @@ namespace SysmonConfigPusher.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AgentId");
+
                     b.HasIndex("ConfigHash");
 
                     b.HasIndex("Hostname")
                         .IsUnique();
+
+                    b.HasIndex("IsAgentManaged");
 
                     b.HasIndex("LastInventoryScan");
 
@@ -376,6 +458,24 @@ namespace SysmonConfigPusher.Data.Migrations
                     b.ToTable("ScheduledDeploymentComputers");
                 });
 
+            modelBuilder.Entity("SysmonConfigPusher.Core.Models.AgentPendingCommand", b =>
+                {
+                    b.HasOne("SysmonConfigPusher.Core.Models.Computer", "Computer")
+                        .WithMany("PendingCommands")
+                        .HasForeignKey("ComputerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SysmonConfigPusher.Core.Models.DeploymentJob", "DeploymentJob")
+                        .WithMany()
+                        .HasForeignKey("DeploymentJobId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Computer");
+
+                    b.Navigation("DeploymentJob");
+                });
+
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.ComputerGroupMember", b =>
                 {
                     b.HasOne("SysmonConfigPusher.Core.Models.Computer", "Computer")
@@ -487,6 +587,8 @@ namespace SysmonConfigPusher.Data.Migrations
                     b.Navigation("DeploymentResults");
 
                     b.Navigation("GroupMemberships");
+
+                    b.Navigation("PendingCommands");
                 });
 
             modelBuilder.Entity("SysmonConfigPusher.Core.Models.ComputerGroup", b =>

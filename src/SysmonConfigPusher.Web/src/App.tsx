@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { DeploymentQueueProvider } from './context/DeploymentQueueContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+import { UserPreferencesProvider } from './context/UserPreferencesContext';
 import { Layout } from './components/Layout';
 import { ToastContainer } from './components/ToastContainer';
 import { DashboardPage } from './pages/DashboardPage';
@@ -18,6 +19,7 @@ import { SettingsPage } from './pages/SettingsPage';
 function App() {
   return (
     <ThemeProvider>
+      <UserPreferencesProvider>
       <AuthProvider>
         <ToastProvider>
         <BrowserRouter>
@@ -40,6 +42,7 @@ function App() {
         </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
+      </UserPreferencesProvider>
     </ThemeProvider>
   );
 }

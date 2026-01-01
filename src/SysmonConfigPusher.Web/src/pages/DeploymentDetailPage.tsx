@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { deploymentsApi } from '../api';
 import { useDeploymentHub } from '../hooks/useDeploymentHub';
+import { useUserPreferences } from '../context/UserPreferencesContext';
 import type { DeploymentJobDetail, DeploymentResult } from '../types';
 
 export function DeploymentDetailPage() {
+  const { formatTimestamp } = useUserPreferences();
   const { id } = useParams<{ id: string }>();
   const jobId = id ? parseInt(id, 10) : null;
 
@@ -236,12 +238,12 @@ export function DeploymentDetailPage() {
           </div>
           <div>
             <span className="font-medium">Started:</span>{' '}
-            {new Date(job.startedAt).toLocaleString()}
+            {formatTimestamp(job.startedAt)}
           </div>
           {job.completedAt && (
             <div>
               <span className="font-medium">Completed:</span>{' '}
-              {new Date(job.completedAt).toLocaleString()}
+              {formatTimestamp(job.completedAt)}
             </div>
           )}
         </div>
@@ -306,7 +308,7 @@ export function DeploymentDetailPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {result.completedAt && result.message !== 'Pending'
-                        ? new Date(result.completedAt).toLocaleString()
+                        ? formatTimestamp(result.completedAt)
                         : '-'}
                     </td>
                   </tr>
