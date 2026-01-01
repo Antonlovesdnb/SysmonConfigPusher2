@@ -305,11 +305,77 @@ For self-signed certificates during testing:
 
 ## Security Considerations
 
-### Registration Token
+The agent is designed with defense-in-depth principles to prevent arbitrary command execution, even if the server or network is compromised.
 
-- Use a strong, random token (32+ characters)
-- Rotate token periodically
-- Different tokens for different environments
+### Protection Against Arbitrary Command Execution
+
+The agent implements multiple layers of security to ensure it can **only** perform Sysmon-related operations:
+
+#### 1. Command Type Whitelisting
+
+The agent only accepts a fixed set of command types. There is no mechanism for the server to execute arbitrary commands:
+
+| Allowed Command | Purpose |
+|-----------------|---------|
+| `GetStatus` | Query Sysmon installation status |
+| `InstallSysmon` | Install Sysmon with provided binary/config |
+| `UpdateConfig` | Apply a new Sysmon configuration |
+| `UninstallSysmon` | Remove Sysmon |
+| `QueryEvents` | Read Sysmon event logs |
+| `RestartSysmon` | Restart the Sysmon service |
+
+Any command type not in this list is rejected with an error.
+
+#### 2. Executable Whitelisting
+
+The agent can only execute two specific executables:
+- `Sysmon.exe`
+- `Sysmon64.exe`
+
+Attempts to execute any other binary are blocked and logged as security violations.
+
+#### 3. Argument Whitelisting
+
+Only these Sysmon command-line arguments are permitted:
+- `-accepteula` (accept EULA)
+- `-i` (install)
+- `-c` (configure)
+- `-u` (uninstall)
+- `-h` (help)
+
+Arguments like `-n` (network capture) or any other flags are rejected.
+
+#### 4. Binary Validation
+
+Before executing a Sysmon binary (even one received from the server), the agent validates:
+- The file's digital signature metadata
+- Company name contains "Microsoft", "Sysinternals", or "Mark Russinovich"
+- Product name or description contains "Sysmon"
+
+Binaries failing validation are deleted and the command is rejected.
+
+#### 5. Configuration Integrity
+
+When the server sends a configuration:
+- A SHA-256 hash is computed and compared against the expected hash
+- Mismatches are rejected as potential tampering
+- Configurations are written to a controlled directory before being applied
+
+### Authentication Model
+
+#### Two-Stage Authentication
+
+1. **Registration Token**: A shared secret configured on both server and agent. Required for initial registration only.
+
+2. **Auth Token**: After successful registration, the server issues a unique per-agent authentication token. All subsequent requests require this token.
+
+If an agent's auth token becomes invalid (e.g., server restart, token rotation), the agent automatically re-registers using the registration token.
+
+#### Token Best Practices
+
+- Use a strong, random registration token (32+ characters)
+- Rotate tokens periodically
+- Use different tokens for different environments (prod/dev/staging)
 
 Generate a secure token:
 ```powershell
@@ -318,17 +384,46 @@ Generate a secure token:
 
 ### Network Security
 
-- Agent only makes outbound HTTPS connections
-- No inbound ports required on agent machines
-- Use TLS 1.2+ (default)
-- Consider IP allowlisting on server
+#### Agent-Initiated Connections Only
+
+The agent uses a **pull model** - it initiates all connections to the server:
+- No inbound firewall rules required on agent machines
+- No listening ports on the agent
+- Works through NAT and restrictive firewalls
+- Server cannot "push" to agents; it queues commands for pickup
+
+#### TLS Encryption
+
+- All communication over HTTPS (TLS 1.2+)
+- Certificate validation enabled by default
+- Self-signed certificates can be allowed for testing (not recommended for production)
+
+#### Network Recommendations
+
+- Use valid TLS certificates in production
+- Consider IP allowlisting on the server to restrict which IPs can register agents
+- Monitor for agents with unexpected hostnames or IPs
+
+### What the Agent Cannot Do
+
+Even if an attacker compromises the server, they **cannot** use the agent to:
+
+- Execute arbitrary commands or scripts
+- Run PowerShell, cmd.exe, or other interpreters
+- Download and execute arbitrary binaries
+- Access files outside the Sysmon directory
+- Modify system settings beyond Sysmon
+- Exfiltrate data (agents only report Sysmon status and events)
+- Pivot to other systems (no lateral movement capability)
 
 ### Service Account
 
 The agent runs as SYSTEM by default. This is required to:
-- Install/manage Sysmon
+- Install/manage Sysmon (requires admin rights)
 - Read event logs
 - Write to Program Files
+
+The agent's code is designed to minimize the attack surface despite running with elevated privileges.
 
 ---
 
