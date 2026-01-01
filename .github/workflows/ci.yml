@@ -41,13 +41,13 @@ jobs:
         working-directory: src/SysmonConfigPusher.Web
         run: npm run build
 
-      # Publish the service
+      # Publish the service (to location expected by WiX installer)
       - name: Publish Service
-        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -o publish/service
+        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true
 
-      # Publish the agent
+      # Publish the agent (to location expected by WiX installer)
       - name: Publish Agent
-        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true -o publish/agent
+        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true
 
       # Build MSI installers (requires WiX Toolset)
       - name: Build Service MSI
@@ -63,8 +63,6 @@ jobs:
         with:
           name: build-output
           path: |
-            publish/service/
-            publish/agent/
             installer/bin/Release/*.msi
             installer/agent/bin/Release/*.msi
           retention-days: 7

@@ -5,6 +5,10 @@ publish/
 
 # WiX toolset
 .wix/
+*.msi
+
+# Agent build output
+installer/agent-output/
 
 # Publish profiles
 PublishProfiles/

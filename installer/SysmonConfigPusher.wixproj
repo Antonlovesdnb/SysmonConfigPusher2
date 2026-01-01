@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
-    <DefineConstants>PublishDir=C:\SysmonConfigPusher2\src\SysmonConfigPusher.Service\bin\Release\net8.0\win-x64\publish\</DefineConstants>
+    <DefineConstants>PublishDir=..\src\SysmonConfigPusher.Service\bin\Release\net8.0\win-x64\publish\</DefineConstants>
     <EnableDefaultWixSourceItems>false</EnableDefaultWixSourceItems>
     <EnableDefaultItems>false</EnableDefaultItems>
   </PropertyGroup>
