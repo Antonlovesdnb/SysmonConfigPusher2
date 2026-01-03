@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { healthApi } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { useCapabilities } from '../context/CapabilitiesContext';
 import { useDeploymentQueue } from '../context/DeploymentQueueContext';
 import { useTheme } from '../context/ThemeContext';
 import { DeploymentQueuePanel } from './DeploymentQueuePanel';
+import { ApiKeyLogin } from './ApiKeyLogin';
 
 export function Layout() {
   const [health, setHealth] = useState<string | null>(null);
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, needsApiKey, authMode, logout, refresh } = useAuth();
+  const { isAgentOnlyMode, loading: capabilitiesLoading } = useCapabilities();
   const { queue, toggleQueuePanel, isQueuePanelOpen } = useDeploymentQueue();
   const { darkMode, toggleDarkMode } = useTheme();
 
@@ -17,6 +20,11 @@ export function Layout() {
     const interval = setInterval(() => healthApi.check().then(setHealth), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Show API key login if needed
+  if (needsApiKey && !authLoading && !capabilitiesLoading) {
+    return <ApiKeyLogin onSuccess={refresh} />;
+  }
 
   return (
     <div className="min-h-screen bg-app-gradient transition-colors">
@@ -121,6 +129,12 @@ export function Layout() {
               </nav>
             </div>
             <div className="flex items-center gap-3">
+              {/* Server mode indicator */}
+              {isAgentOnlyMode && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500 text-white" title="Server running in AgentOnly mode - WMI/SMB/AD features unavailable">
+                  Agent Mode
+                </span>
+              )}
               {/* User info */}
               {!authLoading && user && (
                 <div className="flex items-center gap-2 text-sm">
@@ -135,6 +149,18 @@ export function Layout() {
                   }`}>
                     {user.highestRole}
                   </span>
+                  {/* Logout button for API key mode */}
+                  {authMode === 'ApiKey' && (
+                    <button
+                      onClick={logout}
+                      className="p-1 rounded hover:bg-slate-700 transition-colors"
+                      title="Sign out"
+                    >
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               )}
               <div className="w-px h-5 bg-slate-600" />

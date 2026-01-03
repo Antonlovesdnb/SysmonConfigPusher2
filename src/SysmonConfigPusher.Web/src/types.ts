@@ -1,5 +1,37 @@
 // API Types - matching backend DTOs
 
+// Server Capabilities Types (for Docker/AgentOnly mode detection)
+export type ServerMode = 'Full' | 'AgentOnly';
+export type AuthenticationMode = 'Windows' | 'ApiKey' | 'OAuth' | 'DevAuth';
+
+export interface FeatureFlags {
+  wmiDeployment: boolean;
+  smbFileTransfer: boolean;
+  activeDirectory: boolean;
+  agentDeployment: boolean;
+}
+
+export interface ServerCapabilities {
+  serverMode: ServerMode;
+  authenticationMode: AuthenticationMode;
+  features: FeatureFlags;
+  version: string;
+  platform: 'Windows' | 'Linux';
+}
+
+export interface AuthModeInfo {
+  mode: AuthenticationMode;
+  requiresApiKey: boolean;
+  requiresCredentials: boolean;
+}
+
+export interface ApiKeyValidationResult {
+  valid: boolean;
+  name: string | null;
+  role: string | null;
+  message: string;
+}
+
 // User and Auth Types
 export interface UserInfo {
   username: string;
@@ -10,6 +42,7 @@ export interface UserInfo {
   isOperator: boolean;
   canDeploy: boolean;
   canManageConfigs: boolean;
+  authenticationMode?: AuthenticationMode;
 }
 
 export interface Computer {

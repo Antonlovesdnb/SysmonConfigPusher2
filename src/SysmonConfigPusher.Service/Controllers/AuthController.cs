@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SysmonConfigPusher.Service.Authentication;
 
 namespace SysmonConfigPusher.Service.Controllers;
 
@@ -9,13 +10,16 @@ namespace SysmonConfigPusher.Service.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class AuthController : ControllerBase
 {
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(ILogger<AuthController> logger)
+    public AuthController(
+        IConfiguration configuration,
+        ILogger<AuthController> logger)
     {
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -23,9 +27,11 @@ public class AuthController : ControllerBase
     /// Get information about the currently authenticated user.
     /// </summary>
     [HttpGet("me")]
+    [Authorize]
     public ActionResult<UserInfoDto> GetCurrentUser()
     {
         var username = User.Identity?.Name ?? "Unknown";
+        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
 
         // Extract roles from claims
         var roles = User.Claims
@@ -53,15 +59,73 @@ public class AuthController : ControllerBase
             IsAdmin: roles.Contains("Admin"),
             IsOperator: roles.Contains("Admin") || roles.Contains("Operator"),
             CanDeploy: roles.Contains("Admin") || roles.Contains("Operator"),
-            CanManageConfigs: roles.Contains("Admin") || roles.Contains("Operator")
+            CanManageConfigs: roles.Contains("Admin") || roles.Contains("Operator"),
+            AuthenticationMode: authMode
         );
 
         _logger.LogDebug("User info requested for {User}: {Roles}", username, string.Join(", ", roles));
 
         return Ok(userInfo);
     }
+
+    /// <summary>
+    /// Validate an API key and return user info.
+    /// Used by frontend to verify key before storing.
+    /// </summary>
+    [HttpPost("validate")]
+    [AllowAnonymous]
+    public ActionResult<AuthValidationResult> ValidateKey([FromBody] ValidateKeyRequest request)
+    {
+        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+
+        if (!string.Equals(authMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "API key authentication is not enabled" });
+        }
+
+        if (string.IsNullOrEmpty(request.ApiKey))
+        {
+            return BadRequest(new { message = "API key is required" });
+        }
+
+        // Look up the key in configuration
+        var keys = _configuration.GetSection("Authentication:ApiKey:Keys").Get<List<ApiKeyConfig>>() ?? new();
+        var keyConfig = keys.FirstOrDefault(k => string.Equals(k.Key, request.ApiKey, StringComparison.Ordinal));
+
+        if (keyConfig == null)
+        {
+            _logger.LogWarning("Invalid API key validation attempt");
+            return Unauthorized(new { message = "Invalid API key" });
+        }
+
+        _logger.LogInformation("API key validated for: {Name}", keyConfig.Name);
+
+        return Ok(new AuthValidationResult
+        {
+            Valid = true,
+            Name = keyConfig.Name,
+            Role = keyConfig.Role
+        });
+    }
+
+    /// <summary>
+    /// Get authentication mode info (for login page routing).
+    /// </summary>
+    [HttpGet("mode")]
+    [AllowAnonymous]
+    public ActionResult<AuthModeInfo> GetAuthMode()
+    {
+        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+
+        return Ok(new AuthModeInfo
+        {
+            Mode = authMode,
+            RequiresLogin = !string.Equals(authMode, "Windows", StringComparison.OrdinalIgnoreCase)
+        });
+    }
 }
 
+// DTOs
 /// <summary>
 /// DTO containing information about the authenticated user.
 /// </summary>
@@ -73,4 +137,23 @@ public record UserInfoDto(
     bool IsAdmin,
     bool IsOperator,
     bool CanDeploy,
-    bool CanManageConfigs);
+    bool CanManageConfigs,
+    string AuthenticationMode = "Windows");
+
+public class ValidateKeyRequest
+{
+    public string ApiKey { get; set; } = "";
+}
+
+public class AuthValidationResult
+{
+    public bool Valid { get; set; }
+    public string Name { get; set; } = "";
+    public string Role { get; set; } = "";
+}
+
+public class AuthModeInfo
+{
+    public string Mode { get; set; } = "";
+    public bool RequiresLogin { get; set; }
+}

@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.user
+*.suo
+
+# Build outputs
+**/bin
+**/obj
+**/node_modules
+**/dist
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Test files
+**/tests
+**/*.Tests
+**/coverage
+
+# Development files
+.env
+.env.local
+*.log
+appsettings.Development.json
+
+# MSI installer files
+installer/
+*.msi
+*.wixobj
+
+# Planning docs
+DOCKER_DEPLOYMENT_PLAN.md
+FUTURE_IDEAS.md

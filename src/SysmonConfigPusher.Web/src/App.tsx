@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { CapabilitiesProvider } from './context/CapabilitiesContext';
 import { DeploymentQueueProvider } from './context/DeploymentQueueContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -20,6 +21,7 @@ function App() {
   return (
     <ThemeProvider>
       <UserPreferencesProvider>
+      <CapabilitiesProvider>
       <AuthProvider>
         <ToastProvider>
         <BrowserRouter>
@@ -42,6 +44,7 @@ function App() {
         </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
+      </CapabilitiesProvider>
       </UserPreferencesProvider>
     </ThemeProvider>
   );

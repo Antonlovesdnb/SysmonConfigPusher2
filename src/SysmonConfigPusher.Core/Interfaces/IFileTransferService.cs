@@ -3,6 +3,11 @@ namespace SysmonConfigPusher.Core.Interfaces;
 public interface IFileTransferService
 {
     /// <summary>
+    /// Indicates if this service is available in the current deployment mode.
+    /// </summary>
+    bool IsAvailable { get; }
+
+    /// <summary>
     /// Copies a file to a remote host via SMB admin share (C$).
     /// </summary>
     Task<FileTransferResult> CopyFileAsync(

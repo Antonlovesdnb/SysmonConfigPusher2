@@ -22,15 +22,42 @@ import type {
   AppSettings,
   UpdateSettingsResult,
   DashboardStats,
+  ServerCapabilities,
+  AuthModeInfo,
+  ApiKeyValidationResult,
 } from './types';
 
+// API Key storage key
+const API_KEY_STORAGE_KEY = 'sysmon_api_key';
+
+// Get/Set API key from localStorage
+export const getStoredApiKey = (): string | null => {
+  return localStorage.getItem(API_KEY_STORAGE_KEY);
+};
+
+export const setStoredApiKey = (apiKey: string | null): void => {
+  if (apiKey) {
+    localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+  } else {
+    localStorage.removeItem(API_KEY_STORAGE_KEY);
+  }
+};
+
 const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Add API key header if we have one stored
+  const apiKey = getStoredApiKey();
+  if (apiKey) {
+    headers['X-Api-Key'] = apiKey;
+  }
+
   const response = await fetch(url, {
     ...options,
     credentials: 'include',
-    headers: {
-      ...options.headers,
-    },
+    headers,
   });
   return response;
 };
@@ -385,6 +412,31 @@ export const authApi = {
   async getCurrentUser(): Promise<UserInfo> {
     const response = await fetchWithAuth('/api/auth/me');
     if (!response.ok) throw new Error(`Failed to get user info: ${response.status}`);
+    return response.json();
+  },
+
+  async getAuthMode(): Promise<AuthModeInfo> {
+    const response = await fetch('/api/auth/mode');
+    if (!response.ok) throw new Error(`Failed to get auth mode: ${response.status}`);
+    return response.json();
+  },
+
+  async validateApiKey(apiKey: string): Promise<ApiKeyValidationResult> {
+    const response = await fetch('/api/auth/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+    if (!response.ok) throw new Error(`Failed to validate API key: ${response.status}`);
+    return response.json();
+  },
+};
+
+// Capabilities API
+export const capabilitiesApi = {
+  async get(): Promise<ServerCapabilities> {
+    const response = await fetchWithAuth('/api/capabilities');
+    if (!response.ok) throw new Error(`Failed to get capabilities: ${response.status}`);
     return response.json();
   },
 };

@@ -3,6 +3,11 @@ namespace SysmonConfigPusher.Core.Interfaces;
 public interface IRemoteExecutionService
 {
     /// <summary>
+    /// Indicates if this service is available in the current deployment mode.
+    /// </summary>
+    bool IsAvailable { get; }
+
+    /// <summary>
     /// Executes a command on a remote host using WMI Win32_Process.Create.
     /// Fire-and-forget - returns the process ID if started successfully.
     /// </summary>

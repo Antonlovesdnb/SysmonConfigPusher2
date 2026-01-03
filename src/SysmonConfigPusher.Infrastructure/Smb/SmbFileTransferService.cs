@@ -14,6 +14,9 @@ public class SmbFileTransferService : IFileTransferService
         _logger = logger;
     }
 
+    /// <inheritdoc />
+    public bool IsAvailable => true;
+
     public async Task<FileTransferResult> CopyFileAsync(
         string hostname,
         string localFilePath,

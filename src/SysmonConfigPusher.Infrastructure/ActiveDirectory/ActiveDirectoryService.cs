@@ -13,6 +13,9 @@ public class ActiveDirectoryService : IActiveDirectoryService
         _logger = logger;
     }
 
+    /// <inheritdoc />
+    public bool IsAvailable => true;
+
     public async Task<IEnumerable<AdComputer>> EnumerateComputersAsync(
         string? searchBase = null,
         string? filter = null,

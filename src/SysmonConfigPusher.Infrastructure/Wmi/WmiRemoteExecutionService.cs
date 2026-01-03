@@ -13,6 +13,9 @@ public class WmiRemoteExecutionService : IRemoteExecutionService
         _logger = logger;
     }
 
+    /// <inheritdoc />
+    public bool IsAvailable => true;
+
     public async Task<RemoteExecutionResult> ExecuteCommandAsync(
         string hostname,
         string command,

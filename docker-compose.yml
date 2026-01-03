@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  sysmonpusher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sysmonpusher
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist SQLite database
+      - sysmonpusher-data:/data
+      # Optional: mount custom appsettings
+      # - ./appsettings.Docker.json:/app/appsettings.Production.json:ro
+    environment:
+      # Server runs in AgentOnly mode (no WMI/SMB/AD)
+      - ServerMode=AgentOnly
+      # Use API key authentication
+      - Authentication__Mode=ApiKey
+      # Configure API keys (override in production!)
+      - Authentication__ApiKeys__0__Key=${API_KEY_ADMIN:-changeme-admin-key}
+      - Authentication__ApiKeys__0__Name=Admin
+      - Authentication__ApiKeys__0__Role=Admin
+      - Authentication__ApiKeys__1__Key=${API_KEY_OPERATOR:-changeme-operator-key}
+      - Authentication__ApiKeys__1__Name=Operator
+      - Authentication__ApiKeys__1__Role=Operator
+      - Authentication__ApiKeys__2__Key=${API_KEY_VIEWER:-changeme-viewer-key}
+      - Authentication__ApiKeys__2__Name=Viewer
+      - Authentication__ApiKeys__2__Role=Viewer
+      # Agent registration token (override in production!)
+      - Agent__RegistrationToken=${AGENT_TOKEN:-changeme-agent-token}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sysmonpusher-data:
+    driver: local

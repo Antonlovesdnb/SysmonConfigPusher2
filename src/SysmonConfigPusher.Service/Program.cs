@@ -15,6 +15,8 @@ using SysmonConfigPusher.Infrastructure.EventLog;
 using SysmonConfigPusher.Infrastructure.NoiseAnalysis;
 using SysmonConfigPusher.Infrastructure.BinaryCache;
 using SysmonConfigPusher.Service;
+using SysmonConfigPusher.Service.Authentication;
+using ApiKeyConfig = SysmonConfigPusher.Service.Authentication.ApiKeyConfig;
 using SysmonConfigPusher.Service.Authorization;
 using SysmonConfigPusher.Service.BackgroundServices;
 using SysmonConfigPusher.Service.Middleware;
@@ -97,10 +99,29 @@ builder.Services.AddSwaggerGen(options =>
     }
 });
 
-// Register infrastructure services
-builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
-builder.Services.AddScoped<IRemoteExecutionService, WmiRemoteExecutionService>();
-builder.Services.AddScoped<IFileTransferService, SmbFileTransferService>();
+// Determine server mode (Full = all features, AgentOnly = no WMI/SMB/AD)
+var serverMode = builder.Configuration["ServerMode"] ?? "Full";
+var isAgentOnlyMode = string.Equals(serverMode, "AgentOnly", StringComparison.OrdinalIgnoreCase) ||
+                      !OperatingSystem.IsWindows();
+
+if (isAgentOnlyMode)
+{
+    Log.Information("Running in AgentOnly mode - WMI/SMB/AD features disabled");
+    // AgentOnly mode: use null implementations
+    builder.Services.AddScoped<IActiveDirectoryService, NullActiveDirectoryService>();
+    builder.Services.AddScoped<IRemoteExecutionService, AgentOnlyRemoteExecutionService>();
+    builder.Services.AddScoped<IFileTransferService, AgentOnlyFileTransferService>();
+}
+else
+{
+    Log.Information("Running in Full mode - all features enabled");
+    // Full mode: use Windows implementations
+    builder.Services.AddScoped<IActiveDirectoryService, ActiveDirectoryService>();
+    builder.Services.AddScoped<IRemoteExecutionService, WmiRemoteExecutionService>();
+    builder.Services.AddScoped<IFileTransferService, SmbFileTransferService>();
+}
+
+// These services work in both modes (EventLog requires WMI but degrades gracefully)
 builder.Services.AddScoped<IEventLogService, WmiEventLogService>();
 builder.Services.AddScoped<INoiseAnalysisService, NoiseAnalysisService>();
 builder.Services.AddScoped<IConfigValidationService, SysmonConfigPusher.Infrastructure.ConfigValidation.ConfigValidationService>();
@@ -147,18 +168,40 @@ var dbPath = Path.Combine(dataPath, "sysmon.db");
 builder.Services.AddDbContext<SysmonDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
-// Windows Authentication (DevAuth only allowed in Development environment)
+// Authentication configuration
+// Modes: Windows (default on Windows), ApiKey (for Docker/non-domain), DevAuth (development only)
+var authMode = builder.Configuration["Authentication:Mode"] ??
+               (OperatingSystem.IsWindows() ? "Windows" : "ApiKey");
 var disableAuth = builder.Configuration.GetValue<bool>("DisableAuth");
+
 if (disableAuth && builder.Environment.IsDevelopment())
 {
     // Development mode ONLY: use a simple pass-through auth with all roles
     // This is intentionally restricted to Development environment for security
+    Log.Information("Using DevAuth (development mode - all requests get Admin access)");
     builder.Services.AddAuthentication("DevAuth")
         .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>("DevAuth", null);
 }
+else if (string.Equals(authMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
+{
+    // API Key authentication for Docker/non-domain environments
+    Log.Information("Using API Key authentication");
+
+    // Configure API key options from configuration
+    var apiKeySection = builder.Configuration.GetSection("Authentication:ApiKeys");
+    builder.Services.Configure<ApiKeyAuthOptions>(options =>
+    {
+        options.HeaderName = builder.Configuration["Authentication:ApiKeyHeader"] ?? "X-Api-Key";
+        options.Keys = apiKeySection.Get<List<ApiKeyConfig>>() ?? new List<ApiKeyConfig>();
+    });
+
+    builder.Services.AddAuthentication(ApiKeyAuthOptions.DefaultScheme)
+        .AddScheme<ApiKeyAuthOptions, ApiKeyAuthHandler>(ApiKeyAuthOptions.DefaultScheme, null);
+}
 else
 {
-    // Production mode: Windows Integrated Authentication
+    // Windows Integrated Authentication (default for domain-joined Windows servers)
+    Log.Information("Using Windows Integrated Authentication");
     builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
         .AddNegotiate();
 
