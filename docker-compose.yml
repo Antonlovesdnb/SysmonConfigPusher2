@@ -11,13 +11,11 @@ services:
     volumes:
       # Persist SQLite database
       - sysmonpusher-data:/data
-      # Optional: mount custom appsettings
-      # - ./appsettings.Docker.json:/app/appsettings.Production.json:ro
+      # Mount Docker-specific config (HTTP only, no Kestrel HTTPS)
+      - ./appsettings.Docker.json:/app/appsettings.json:ro
     environment:
       # Use HTTP only (use reverse proxy for HTTPS in production)
       - ASPNETCORE_URLS=http://+:5000
-      - Kestrel__Endpoints__Https__Url=
-      - Kestrel__Endpoints__Http__Url=http://+:5000
       # Server runs in AgentOnly mode (no WMI/SMB/AD)
       - ServerMode=AgentOnly
       # Use API key authentication
