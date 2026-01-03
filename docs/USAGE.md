@@ -85,16 +85,95 @@ After populating from AD, scan to detect Sysmon status:
 
 ### Configuration Tags (SCPTAG)
 
-Sysmon configs can include a tag comment for identification:
+SCPTAG (Sysmon Config Pusher Tag) is a special XML comment that lets you identify and track which configuration version is deployed to each endpoint.
+
+#### Tag Format
+
+Add an XML comment with `SCPTAG:` followed by your tag name at the **beginning** of your Sysmon configuration file:
 
 ```xml
 <!--SCPTAG:Production-v1.5-->
+<Sysmon schemaversion="4.90">
+  <HashAlgorithms>SHA256</HashAlgorithms>
+  <EventFiltering>
+    <!-- Your rules here -->
+  </EventFiltering>
+</Sysmon>
+```
+
+**Format rules:**
+- The tag must be in an XML comment: `<!-- SCPTAG:YourTagName -->`
+- Place it at the very beginning of the file (before the `<Sysmon>` element)
+- Spaces around the tag name are trimmed automatically
+- Tags are case-sensitive
+
+#### Tag Naming Best Practices
+
+Use descriptive tags that help identify the configuration's purpose and version:
+
+| Good Tags | Why |
+|-----------|-----|
+| `Production-v2.1` | Clear environment and version |
+| `Workstations-Baseline` | Identifies target type |
+| `SwiftOnSecurity-2024-01` | Source and date |
+| `HighSecurity-Servers` | Security level and scope |
+| `PCI-Compliance` | Regulatory requirement |
+
+| Avoid | Why |
+|-------|-----|
+| `config1` | Not descriptive |
+| `test` | Ambiguous |
+| `new` | Will become stale |
+
+#### How Tags Are Used
+
+1. **Config Management**: Tags display in the Configurations list for easy identification
+2. **Inventory Tracking**: After deployment, the tag appears in the Inventory as a blue badge under "Config Tag"
+3. **Version Verification**: Quickly verify which config version is deployed to each endpoint
+4. **Audit Trail**: Deployment history shows which tagged config was deployed
+
+#### Adding Tags to Existing Configs
+
+If you have an untagged config, simply add the comment at the top:
+
+**Before:**
+```xml
 <Sysmon schemaversion="4.90">
   ...
 </Sysmon>
 ```
 
-This tag is displayed in the inventory after deployment.
+**After:**
+```xml
+<!--SCPTAG:MyOrg-Baseline-v1.0-->
+<Sysmon schemaversion="4.90">
+  ...
+</Sysmon>
+```
+
+#### Updating Tags When Configs Change
+
+When you modify a configuration, update the tag to reflect the change:
+
+```xml
+<!--SCPTAG:Production-v1.5-->    <!-- Before -->
+<!--SCPTAG:Production-v1.6-->    <!-- After update -->
+```
+
+This makes it easy to see at a glance whether endpoints are running the latest configuration.
+
+#### Tags with Popular Configs
+
+When importing configs from popular sources, consider prefixing with the source:
+
+```xml
+<!--SCPTAG:SwiftOnSecurity-2024-Modified-->
+<Sysmon schemaversion="4.90">
+  ...
+</Sysmon>
+```
+
+This helps distinguish modified configs from the original source.
 
 ### Importing from URL
 

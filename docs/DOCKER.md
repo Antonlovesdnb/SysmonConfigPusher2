@@ -226,6 +226,185 @@ The SQLite database is stored at `/data/sysmon.db`. To persist data:
 -v /path/on/host:/data
 ```
 
+## Backup and Recovery
+
+**⚠️ Important:** If you delete the Docker volume, you lose all data including configurations, deployment history, agent registrations, and audit logs. Always maintain backups!
+
+### What's Stored in the Database
+
+| Data | Impact if Lost |
+|------|----------------|
+| **Configurations** | Must re-upload all Sysmon configs |
+| **Deployment History** | Lose audit trail of all deployments |
+| **Agent Registrations** | Agents must re-register |
+| **Computer Inventory** | Lose cached host information |
+| **Scheduled Deployments** | Scheduled jobs are lost |
+| **Noise Analysis Results** | Must re-run analysis |
+| **Audit Log** | Lose compliance trail |
+
+### Manual Backup
+
+**Option 1: Copy the database file**
+
+```bash
+# Stop the container to ensure consistency
+docker compose stop
+
+# Copy the database from the volume
+docker run --rm -v sysmonpusher-data:/data -v $(pwd)/backups:/backup alpine \
+  cp /data/sysmon.db /backup/sysmon-$(date +%Y%m%d-%H%M%S).db
+
+# Restart the container
+docker compose start
+```
+
+**Option 2: Use bind mount for easy access**
+
+```yaml
+# docker-compose.yml
+services:
+  sysmonpusher:
+    volumes:
+      - ./data:/data  # Data accessible at ./data/sysmon.db
+```
+
+Then backup with:
+```bash
+cp ./data/sysmon.db ./backups/sysmon-$(date +%Y%m%d-%H%M%S).db
+```
+
+### Automated Backup Script
+
+Create `backup.sh`:
+
+```bash
+#!/bin/bash
+BACKUP_DIR="/path/to/backups"
+CONTAINER_NAME="sysmonpusher"
+KEEP_DAYS=30
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Copy database (SQLite supports hot backup for reads)
+docker exec $CONTAINER_NAME sqlite3 /data/sysmon.db ".backup '/tmp/sysmon-backup.db'"
+docker cp $CONTAINER_NAME:/tmp/sysmon-backup.db "$BACKUP_DIR/sysmon-$(date +%Y%m%d-%H%M%S).db"
+
+# Clean old backups
+find "$BACKUP_DIR" -name "sysmon-*.db" -mtime +$KEEP_DAYS -delete
+
+echo "Backup completed: $BACKUP_DIR"
+```
+
+Schedule with cron:
+```bash
+# Daily backup at 2 AM
+0 2 * * * /path/to/backup.sh
+```
+
+### Exporting Configurations
+
+To backup just your Sysmon configurations (portable, version-controllable):
+
+**Via API:**
+
+```bash
+# Get all configs (requires API key with Viewer role)
+curl -H "X-Api-Key: your-api-key" \
+  https://your-server:5000/api/configs \
+  -o configs-backup.json
+
+# Get a specific config's XML content
+curl -H "X-Api-Key: your-api-key" \
+  https://your-server:5000/api/configs/1 \
+  | jq -r '.content' > my-config.xml
+```
+
+**Via Docker exec:**
+
+```bash
+# Export all configs as JSON
+docker exec sysmonpusher sqlite3 -json /data/sysmon.db \
+  "SELECT id, filename, tag, content, hash, uploadedAt FROM Configs WHERE isActive = 1" \
+  > configs-export.json
+
+# Export a single config's XML
+docker exec sysmonpusher sqlite3 /data/sysmon.db \
+  "SELECT content FROM Configs WHERE id = 1" > config-1.xml
+```
+
+### Restoring from Backup
+
+**Full database restore:**
+
+```bash
+# Stop the container
+docker compose stop
+
+# Replace the database
+docker run --rm -v sysmonpusher-data:/data -v $(pwd)/backups:/backup alpine \
+  cp /backup/sysmon-20240115-020000.db /data/sysmon.db
+
+# Start the container
+docker compose start
+```
+
+**Importing configs from XML files:**
+
+Use the web UI's "Upload Config" or "Import from URL" features, or:
+
+```bash
+# Upload via API
+curl -X POST -H "X-Api-Key: your-admin-key" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@my-config.xml" \
+  https://your-server:5000/api/configs
+```
+
+### Migrating to a New Server
+
+1. **Backup the database:**
+   ```bash
+   docker exec sysmonpusher sqlite3 /data/sysmon.db ".backup '/tmp/migration.db'"
+   docker cp sysmonpusher:/tmp/migration.db ./migration.db
+   ```
+
+2. **Copy to new server:**
+   ```bash
+   scp migration.db newserver:/path/to/data/
+   ```
+
+3. **On new server, start with the database:**
+   ```bash
+   # Copy database to new volume
+   docker run --rm -v sysmonpusher-data:/data -v $(pwd):/backup alpine \
+     cp /backup/migration.db /data/sysmon.db
+
+   # Start the container
+   docker compose up -d
+   ```
+
+4. **Update agent configurations** to point to the new server URL
+
+### Disaster Recovery Checklist
+
+If you lose your Docker volume:
+
+1. ✅ Restore database from backup (see above)
+2. ✅ If no backup: re-upload Sysmon configurations from version control
+3. ✅ Agents will automatically re-register when they poll the server
+4. ✅ Re-run inventory scan to repopulate computer list
+5. ⚠️ Deployment history will be lost (cannot be recovered without backup)
+6. ⚠️ Scheduled deployments must be recreated
+
+### Best Practices
+
+1. **Use bind mounts** instead of named volumes for easier backup access
+2. **Version control your configs** - store Sysmon XML files in git
+3. **Automate backups** - schedule daily database backups
+4. **Test restores** - periodically verify backups work
+5. **Document your setup** - keep docker-compose.yml and env vars in version control
+
 ## Building the Image
 
 ```bash

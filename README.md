@@ -44,9 +44,12 @@ See the [Development Guide](docs/DEVELOPMENT.md) for building and running locall
 
 | Guide | Description |
 |-------|-------------|
-| [Installation Guide](docs/INSTALLATION.md) | Production deployment and configuration |
-| [Usage Guide](docs/USAGE.md) | How to use the application |
+| [Installation Guide](docs/INSTALLATION.md) | Production deployment on Windows Server |
+| [Usage Guide](docs/USAGE.md) | How to use the application, config tagging (SCPTAG) |
 | [Agent Guide](docs/AGENTS.md) | Deploying and managing the lightweight agent |
+| [Docker Guide](docs/DOCKER.md) | Container deployment, backup, and recovery |
+| [Certificate Guide](docs/CERTIFICATES.md) | TLS configuration for server and agents |
+| [Deployment Modes](docs/DEPLOYMENT_MODES.md) | Full vs Agent-Only mode comparison |
 | [Development Guide](docs/DEVELOPMENT.md) | Building from source, running locally |
 
 ## Requirements
