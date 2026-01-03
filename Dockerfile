@@ -44,6 +44,9 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# Install OpenSSL for certificate generation
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN groupadd -r sysmonpusher && useradd -r -g sysmonpusher sysmonpusher
 
@@ -53,18 +56,30 @@ COPY --from=build /app/publish .
 # Copy frontend build output (overwrites any existing wwwroot from publish)
 COPY --from=frontend-build /src/src/SysmonConfigPusher.Service/wwwroot ./wwwroot
 
-# Create data and logs directories
-RUN mkdir -p /data/logs && chown -R sysmonpusher:sysmonpusher /data
+# Create data, logs, and certs directories
+RUN mkdir -p /data/logs /app/certs && chown -R sysmonpusher:sysmonpusher /data /app/certs
+
+# Generate self-signed certificate
+RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /app/certs/server.key \
+    -out /app/certs/server.crt \
+    -subj "/C=US/ST=State/L=City/O=SysmonConfigPusher/CN=localhost" && \
+    openssl pkcs12 -export -out /app/certs/server.pfx \
+    -inkey /app/certs/server.key -in /app/certs/server.crt \
+    -passout pass:changeit && \
+    chown -R sysmonpusher:sysmonpusher /app/certs
 
 # Environment variables
-ENV ASPNETCORE_URLS=http://+:5000
+ENV ASPNETCORE_URLS=https://+:5001;http://+:5000
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/app/certs/server.pfx
+ENV ASPNETCORE_Kestrel__Certificates__Default__Password=changeit
 ENV ServerMode=AgentOnly
 ENV Authentication__Mode=ApiKey
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/sysmon.db"
 
-# Expose HTTP port (use reverse proxy for HTTPS in production)
-EXPOSE 5000
+# Expose both HTTP and HTTPS ports
+EXPOSE 5000 5001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
