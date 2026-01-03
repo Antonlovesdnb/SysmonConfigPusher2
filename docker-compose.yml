@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/antonlovesdnb/sysmonpusher2:latest
+    image: ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
     container_name: sysmonpusher
     ports:
       - "5000:5000"

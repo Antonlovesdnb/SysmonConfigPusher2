@@ -49,7 +49,7 @@ docker run -d \
   -v sysmonpusher-data:/data \
   -e API_KEY_ADMIN="your-admin-key" \
   -e AGENT_TOKEN="your-agent-token" \
-  ghcr.io/antonlovesdnb/sysmonpusher2:latest
+  ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
 ```
 
 For multiple roles:
@@ -62,7 +62,7 @@ docker run -d \
   -e API_KEY_OPERATOR="operator-secret-key" \
   -e API_KEY_VIEWER="viewer-secret-key" \
   -e AGENT_TOKEN="agent-registration-token" \
-  ghcr.io/antonlovesdnb/sysmonpusher2:latest
+  ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
 ```
 
 ## Configuration

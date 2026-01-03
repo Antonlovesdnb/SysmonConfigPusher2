@@ -45,7 +45,7 @@ docker run -d --name sysmonpusher \
   -v sysmonpusher-data:/data \
   -e API_KEY_ADMIN="your-admin-key" \
   -e AGENT_TOKEN="your-agent-token" \
-  ghcr.io/antonlovesdnb/sysmonpusher2:latest
+  ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
 ```
 
 See [Docker Guide](docs/DOCKER.md) for full configuration options.
