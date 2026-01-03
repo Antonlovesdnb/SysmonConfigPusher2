@@ -8,13 +8,20 @@ on:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  build-and-release:
+  # Build MSI installers on Windows
+  build-msi:
     runs-on: windows-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
 
     steps:
       - name: Checkout
@@ -93,47 +100,136 @@ jobs:
             echo "Renamed agent MSI to: $newName"
           }
 
-      # Create Draft Release
-      - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload MSI artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: msi-installers
+          path: |
             installer/bin/Release/*.msi
             installer/agent/bin/Release/*.msi
+          retention-days: 30
+
+  # Build and push Docker image on Linux
+  build-docker:
+    runs-on: ubuntu-latest
+
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+
+  # Create GitHub Release
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-msi, build-docker]
+
+    steps:
+      - name: Download MSI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: msi-installers
+          path: ./artifacts
+
+      - name: List artifacts
+        run: find ./artifacts -type f -name "*.msi"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/**/*.msi
           draft: false
           generate_release_notes: true
           name: ${{ github.ref_name }}
           body: |
             ## Downloads
 
+            ### Windows Installers (MSI)
+
             | File | Description |
             |------|-------------|
-            | `SysmonConfigPusher-${{ steps.version.outputs.VERSION }}.msi` | Server/Management Console installer |
-            | `SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi` | Agent installer for cloud endpoints |
+            | `SysmonConfigPusher-${{ needs.build-msi.outputs.version }}.msi` | Server/Management Console installer |
+            | `SysmonConfigPusherAgent-${{ needs.build-msi.outputs.version }}.msi` | Agent installer for cloud endpoints |
+
+            ### Docker Image
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ needs.build-msi.outputs.version }}
+            ```
+
+            Or use the latest tag:
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:latest
+            ```
 
             ## Installation
 
-            ### Server
-            1. Download and run `SysmonConfigPusher-${{ steps.version.outputs.VERSION }}.msi` on your management server
-            2. Start the service: `Start-Service SysmonConfigPusher`
-            3. Configure the service with appropriate credentials
+            ### Option 1: Windows Server (Full Mode)
+            1. Download and run `SysmonConfigPusher-${{ needs.build-msi.outputs.version }}.msi` on your management server
+            2. Configure the service with appropriate credentials
+            3. Start the service: `Start-Service SysmonConfigPusher`
             4. Access the web UI at `https://servername:5001`
 
-            ### Agent (for cloud endpoints)
-            1. Download `SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi`
-            2. Install with: `msiexec /i SysmonConfigPusherAgent-${{ steps.version.outputs.VERSION }}.msi SERVER_URL=https://your-server:5001 REGISTRATION_TOKEN=your-token`
+            ### Option 2: Docker (Agent-Only Mode)
+            ```bash
+            docker run -d --name sysmonpusher \
+              -p 5000:5000 \
+              -v sysmonpusher-data:/data \
+              -e "Authentication__ApiKeys__0__Key=your-admin-key" \
+              -e "Authentication__ApiKeys__0__Name=Admin" \
+              -e "Authentication__ApiKeys__0__Role=Admin" \
+              -e "Agent__RegistrationToken=your-agent-token" \
+              ghcr.io/${{ github.repository }}:${{ needs.build-msi.outputs.version }}
+            ```
+
+            ### Agent Installation (for cloud endpoints)
+            ```powershell
+            msiexec /i SysmonConfigPusherAgent-${{ needs.build-msi.outputs.version }}.msi SERVER_URL=https://your-server:5001 REGISTRATION_TOKEN=your-token /qn
+            ```
 
             ## What's Changed
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Upload artifacts for debugging
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts-${{ steps.version.outputs.VERSION }}
-          path: |
-            installer/bin/Release/*.msi
-            installer/agent/bin/Release/*.msi
-          retention-days: 30

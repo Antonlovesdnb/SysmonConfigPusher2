@@ -8,7 +8,6 @@ on:
 
 jobs:
   build-and-test:
-    if: false  # Temporarily disabled for Docker troubleshooting
     runs-on: windows-latest
 
     steps:
@@ -67,3 +66,23 @@ jobs:
             installer/bin/Release/*.msi
             installer/agent/bin/Release/*.msi
           retention-days: 7
+
+  # Docker build job (Linux runner for Docker)
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (test only)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: sysmonpusher:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
