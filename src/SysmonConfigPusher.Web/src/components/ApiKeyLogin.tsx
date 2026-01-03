@@ -89,7 +89,7 @@ export function ApiKeyLogin({ onSuccess }: ApiKeyLoginProps) {
 
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            API keys are configured in the server&apos;s appsettings.json
+            API keys are configured via environment variables or appsettings.json
           </p>
         </div>
       </div>
