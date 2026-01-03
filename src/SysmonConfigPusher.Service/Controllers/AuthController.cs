@@ -90,11 +90,19 @@ public class AuthController : ControllerBase
 
         // Look up the key in configuration
         var keys = _configuration.GetSection("Authentication:ApiKeys").Get<List<ApiKeyConfig>>() ?? new();
+
+        _logger.LogInformation("Loaded {Count} API keys from configuration", keys.Count);
+        foreach (var k in keys)
+        {
+            _logger.LogDebug("Configured key: Name={Name}, Role={Role}, KeyLength={Length}",
+                k.Name, k.Role, k.Key?.Length ?? 0);
+        }
+
         var keyConfig = keys.FirstOrDefault(k => string.Equals(k.Key, request.ApiKey, StringComparison.Ordinal));
 
         if (keyConfig == null)
         {
-            _logger.LogWarning("Invalid API key validation attempt");
+            _logger.LogWarning("Invalid API key validation attempt. Provided key length: {Length}", request.ApiKey?.Length ?? 0);
             return Unauthorized(new { message = "Invalid API key" });
         }
 
