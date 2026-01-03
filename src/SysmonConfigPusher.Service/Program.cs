@@ -36,9 +36,17 @@ var tempConfig = new ConfigurationBuilder()
 var logDirectory = tempConfig["SysmonConfigPusher:LogDirectory"];
 if (string.IsNullOrEmpty(logDirectory))
 {
-    logDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-        "SysmonConfigPusher", "logs");
+    if (OperatingSystem.IsWindows())
+    {
+        logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "SysmonConfigPusher", "logs");
+    }
+    else
+    {
+        // On Linux/Docker, use /data/logs (matches Docker volume mount)
+        logDirectory = "/data/logs";
+    }
 }
 Directory.CreateDirectory(logDirectory);
 var logPath = Path.Combine(logDirectory, "sysmonpusher-.log");
@@ -159,9 +167,18 @@ builder.Services.AddHttpClient("ConfigImport", client =>
 });
 
 // Configure SQLite
-var dataPath = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-    "SysmonConfigPusher");
+string dataPath;
+if (OperatingSystem.IsWindows())
+{
+    dataPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "SysmonConfigPusher");
+}
+else
+{
+    // On Linux/Docker, use /data (matches Docker volume mount)
+    dataPath = "/data";
+}
 Directory.CreateDirectory(dataPath);
 var dbPath = Path.Combine(dataPath, "sysmon.db");
 

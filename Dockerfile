@@ -53,8 +53,8 @@ COPY --from=build /app/publish .
 # Copy frontend build output (overwrites any existing wwwroot from publish)
 COPY --from=frontend-build /src/src/SysmonConfigPusher.Service/wwwroot ./wwwroot
 
-# Create data directory for SQLite database
-RUN mkdir -p /data && chown -R sysmonpusher:sysmonpusher /data
+# Create data and logs directories
+RUN mkdir -p /data/logs && chown -R sysmonpusher:sysmonpusher /data
 
 # Environment variables
 ENV ASPNETCORE_URLS=http://+:5000
