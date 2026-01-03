@@ -23,8 +23,11 @@ using SysmonConfigPusher.Service.Middleware;
 using SysmonConfigPusher.Service.Services;
 using System.Text.Json;
 
-// Ensure self-signed certificate exists for HTTPS
-CertificateHelper.EnsureCertificateExists();
+// Ensure self-signed certificate exists for HTTPS (Windows only)
+if (OperatingSystem.IsWindows())
+{
+    CertificateHelper.EnsureCertificateExists();
+}
 
 // Configure Serilog - read log directory from configuration
 var tempConfig = new ConfigurationBuilder()
