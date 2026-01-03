@@ -7,9 +7,9 @@
 
 <p align="center">
   <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/version-2.1.0-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.2.0-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/.NET-8.0-purple?style=flat-square" alt=".NET 8">
-  <img src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" alt="Windows">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Docker-blue?style=flat-square" alt="Windows | Docker">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
 </p>
 
@@ -21,22 +21,38 @@
 |---------|-------------|
 | **Agentless Deployment** | Push Sysmon binaries and configs via WMI and SMB |
 | **Agent Support** | Lightweight agent for cloud VMs and DMZ servers |
+| **Docker Support** | Run on Linux/Docker for agent-only deployments |
 | **Web Interface** | Modern React UI with real-time deployment progress |
 | **Event Log Viewer** | Query Sysmon logs from remote hosts |
 | **Noise Analysis** | Identify high-volume events to tune configurations |
 | **Scheduled Deployments** | Schedule deployments for future execution |
-| **Windows Auth** | Integrated Kerberos/NTLM authentication |
+| **Flexible Auth** | Windows Integrated Auth or API keys |
 
 ## Quick Start
 
-### Option 1: MSI Installer (Recommended)
+### Option 1: MSI Installer (Windows Server)
 
 1. Download the latest [SysmonConfigPusher.msi](https://github.com/Antonlovesdnb/SysmonConfigPusher2/releases/latest)
 2. Run the installer as Administrator
 3. Configure a domain service account ([see docs](docs/INSTALLATION.md#step-4-configure-service-account))
 4. Start the service and access `https://servername:5001`
 
-### Option 2: Build from Source
+### Option 2: Docker (Agent-Only Mode)
+
+```bash
+docker run -d --name sysmonpusher \
+  -p 5000:5000 \
+  -v sysmonpusher-data:/data \
+  -e "Authentication__ApiKeys__0__Key=your-admin-key" \
+  -e "Authentication__ApiKeys__0__Name=Admin" \
+  -e "Authentication__ApiKeys__0__Role=Admin" \
+  -e "Agent__RegistrationToken=your-agent-token" \
+  ghcr.io/antonlovesdnb/sysmonpusher:latest
+```
+
+See [Docker Guide](docs/DOCKER.md) for full configuration options.
+
+### Option 3: Build from Source
 
 See the [Development Guide](docs/DEVELOPMENT.md) for building and running locally.
 
@@ -54,44 +70,66 @@ See the [Development Guide](docs/DEVELOPMENT.md) for building and running locall
 
 ## Requirements
 
+### Full Mode (Windows Server)
+
 - **Server**: Windows Server 2016+ (domain-joined)
 - **Service Account**: Domain account with local admin rights on target endpoints
-- **Network Ports**:
-  - TCP 135 (WMI/RPC)
-  - TCP 445 (SMB)
-  - TCP 49152-65535 (RPC dynamic)
+- **Network Ports**: TCP 135 (WMI), 445 (SMB), 49152-65535 (RPC dynamic)
+
+### Agent-Only Mode (Docker/Linux)
+
+- **Server**: Any platform with Docker or Linux
+- **Agents**: Windows endpoints with agent installed ([Agent Guide](docs/AGENTS.md))
+- **Network**: Agents connect outbound to server on HTTPS (port 5000/5001)
+
+See [Deployment Modes](docs/DEPLOYMENT_MODES.md) for a detailed comparison.
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────┐
-│  Browser (Windows Integrated Auth)   │
-└──────────────────┬───────────────────┘
-                   │ HTTPS :5001
-                   ▼
-┌──────────────────────────────────────┐
-│     ASP.NET Core Windows Service     │
-│  ┌────────────┐  ┌────────────────┐  │
-│  │  REST API  │  │  SignalR Hub   │  │
-│  └────────────┘  └────────────────┘  │
-│  ┌────────────────────────────────┐  │
-│  │    SQLite + Background Jobs    │  │
-│  └────────────────────────────────┘  │
-└───────────┬───────────────┬──────────┘
-            │               │
-    WMI+SMB │               │ HTTPS (Agent API)
-            ▼               ▼
-┌───────────────────┐ ┌────────────────────┐
-│ Domain Endpoints  │ │  Cloud/DMZ Agents  │
-│   (Agentless)     │ │  (Lightweight)     │
-└───────────────────┘ └────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Web Browser                                 │
+│              (Windows Auth or API Key Authentication)                │
+└─────────────────────────────┬───────────────────────────────────────┘
+                              │ HTTPS
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SysmonConfigPusher Server                         │
+│                (Windows Service or Docker Container)                 │
+│                                                                      │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
+│  │  REST API   │  │ SignalR Hub  │  │  Background Workers        │  │
+│  │  (Configs,  │  │ (Real-time   │  │  (Deployments, Scans,      │  │
+│  │  Deploy)    │  │  Progress)   │  │   Scheduled Jobs)          │  │
+│  └─────────────┘  └──────────────┘  └────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │                    SQLite Database                              │ │
+│  │    (Configs, Inventory, Deployments, Audit Log)                 │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└───────────────────┬─────────────────────────────┬───────────────────┘
+                    │                             │
+        WMI + SMB   │                             │  HTTPS (Agent API)
+      (Full Mode)   │                             │  (Agent-Only Mode)
+                    ▼                             ▼
+┌───────────────────────────────┐   ┌───────────────────────────────┐
+│     Domain Endpoints          │   │     Cloud/DMZ Endpoints       │
+│        (Agentless)            │   │      (Lightweight Agent)      │
+│                               │   │                               │
+│  • Direct WMI execution       │   │  • Agent polls for commands   │
+│  • SMB file transfer          │   │  • Outbound HTTPS only        │
+│  • Remote event log queries   │   │  • No inbound ports needed    │
+└───────────────────────────────┘   └───────────────────────────────┘
 ```
 
 ## Tech Stack
 
-- **Backend**: ASP.NET Core 8, Entity Framework Core, SQLite
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Vite
-- **Real-time**: SignalR WebSockets
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | ASP.NET Core 8, Entity Framework Core, SQLite |
+| **Frontend** | React 18, TypeScript, Tailwind CSS, Vite |
+| **Real-time** | SignalR WebSockets |
+| **Deployment** | Windows Service, Docker, MSI Installer (WiX) |
+| **Agent** | .NET 8 self-contained Windows Service |
 
 ## Contributing
 
