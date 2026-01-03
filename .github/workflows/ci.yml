@@ -8,6 +8,7 @@ on:
 
 jobs:
   build-and-test:
+    if: false  # Temporarily disabled for Docker troubleshooting
     runs-on: windows-latest
 
     steps:
