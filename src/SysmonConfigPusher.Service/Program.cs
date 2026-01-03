@@ -207,16 +207,19 @@ else if (string.Equals(authMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
     // API Key authentication for Docker/non-domain environments
     Log.Information("Using API Key authentication");
 
-    // Configure API key options from configuration
+    // Load API keys from configuration
     var apiKeySection = builder.Configuration.GetSection("Authentication:ApiKeys");
-    builder.Services.Configure<ApiKeyAuthOptions>(options =>
-    {
-        options.HeaderName = builder.Configuration["Authentication:ApiKeyHeader"] ?? "X-Api-Key";
-        options.Keys = apiKeySection.Get<List<ApiKeyConfig>>() ?? new List<ApiKeyConfig>();
-    });
+    var keys = apiKeySection.Get<List<ApiKeyConfig>>() ?? new List<ApiKeyConfig>();
+    var headerName = builder.Configuration["Authentication:ApiKeyHeader"] ?? "X-Api-Key";
+
+    Log.Information("Loaded {Count} API keys for authentication", keys.Count);
 
     builder.Services.AddAuthentication(ApiKeyAuthOptions.DefaultScheme)
-        .AddScheme<ApiKeyAuthOptions, ApiKeyAuthHandler>(ApiKeyAuthOptions.DefaultScheme, null);
+        .AddScheme<ApiKeyAuthOptions, ApiKeyAuthHandler>(ApiKeyAuthOptions.DefaultScheme, options =>
+        {
+            options.HeaderName = headerName;
+            options.Keys = keys;
+        });
 }
 else
 {
