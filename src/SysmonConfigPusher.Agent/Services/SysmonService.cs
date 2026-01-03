@@ -22,9 +22,15 @@ public class SysmonService
     public SysmonService(ILogger<SysmonService> logger)
     {
         _logger = logger;
-        var basePath = Path.GetDirectoryName(Environment.ProcessPath)
-            ?? AgentConstants.DefaultInstallPath;
+        // Use AppContext.BaseDirectory for reliable path resolution in single-file Windows Services
+        var basePath = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.IsNullOrEmpty(basePath))
+        {
+            basePath = AgentConstants.DefaultInstallPath;
+        }
         _sysmonDirectory = Path.Combine(basePath, AgentConstants.SysmonFilesDirectory);
+        _logger.LogInformation("SysmonService initialized with base path: {BasePath}, sysmon directory: {SysmonDir}",
+            basePath, _sysmonDirectory);
     }
 
     /// <summary>
@@ -208,9 +214,16 @@ public class SysmonService
                 return (false, "Sysmon not installed");
             }
 
+            // Ensure directory exists
+            _logger.LogInformation("Creating directory: {Dir}", _sysmonDirectory);
+            Directory.CreateDirectory(_sysmonDirectory);
+            _logger.LogInformation("Directory created/verified: {Dir}", _sysmonDirectory);
+
             // Write new config
             var configPath = Path.Combine(_sysmonDirectory, "config.xml");
+            _logger.LogInformation("Writing config to: {Path}", configPath);
             await File.WriteAllTextAsync(configPath, payload.ConfigXml);
+            _logger.LogInformation("Config written successfully");
 
             // Verify hash if provided
             if (!string.IsNullOrEmpty(payload.ConfigHash))
