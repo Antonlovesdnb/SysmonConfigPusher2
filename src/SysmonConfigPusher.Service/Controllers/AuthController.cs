@@ -89,7 +89,7 @@ public class AuthController : ControllerBase
         }
 
         // Look up the key in configuration
-        var keys = _configuration.GetSection("Authentication:ApiKey:Keys").Get<List<ApiKeyConfig>>() ?? new();
+        var keys = _configuration.GetSection("Authentication:ApiKeys").Get<List<ApiKeyConfig>>() ?? new();
         var keyConfig = keys.FirstOrDefault(k => string.Equals(k.Key, request.ApiKey, StringComparison.Ordinal));
 
         if (keyConfig == null)
