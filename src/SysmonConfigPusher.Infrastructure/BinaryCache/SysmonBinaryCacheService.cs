@@ -26,9 +26,17 @@ public class SysmonBinaryCacheService : ISysmonBinaryCacheService
         _logger = logger;
         _httpClient = httpClient;
 
-        _cacheDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "SysmonConfigPusher", "cache");
+        if (OperatingSystem.IsWindows())
+        {
+            _cacheDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "SysmonConfigPusher", "cache");
+        }
+        else
+        {
+            // On Linux/Docker, use /data/cache
+            _cacheDirectory = "/data/cache";
+        }
 
         Directory.CreateDirectory(_cacheDirectory);
     }
