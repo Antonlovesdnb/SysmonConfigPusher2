@@ -36,7 +36,7 @@ export AGENT_TOKEN="your-secure-agent-registration-token"
 docker-compose up -d
 ```
 
-3. **Access the web UI** at http://localhost:5000
+3. **Access the web UI** at https://localhost:5001 (you'll see a certificate warning for the self-signed cert)
 
 4. **Sign in** using your API key
 
@@ -45,7 +45,7 @@ docker-compose up -d
 ```bash
 docker run -d \
   --name sysmonpusher \
-  -p 5000:5000 \
+  -p 5001:5001 \
   -v sysmonpusher-data:/data \
   -e API_KEY_ADMIN="your-admin-key" \
   -e AGENT_TOKEN="your-agent-token" \
@@ -56,7 +56,7 @@ For multiple roles:
 ```bash
 docker run -d \
   --name sysmonpusher \
-  -p 5000:5000 \
+  -p 5001:5001 \
   -v sysmonpusher-data:/data \
   -e API_KEY_ADMIN="admin-secret-key" \
   -e API_KEY_OPERATOR="operator-secret-key" \
@@ -64,6 +64,21 @@ docker run -d \
   -e AGENT_TOKEN="agent-registration-token" \
   ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
 ```
+
+### Custom Port (e.g., 443)
+
+To expose on a standard HTTPS port:
+```bash
+docker run -d \
+  --name sysmonpusher \
+  -p 443:5001 \
+  -v sysmonpusher-data:/data \
+  -e API_KEY_ADMIN="your-admin-key" \
+  -e AGENT_TOKEN="your-agent-token" \
+  ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
+```
+
+Then access at `https://your-server/` (no port needed).
 
 ## Configuration
 

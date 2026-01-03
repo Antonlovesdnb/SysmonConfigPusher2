@@ -41,12 +41,14 @@
 
 ```bash
 docker run -d --name sysmonpusher \
-  -p 5000:5000 \
+  -p 5001:5001 \
   -v sysmonpusher-data:/data \
   -e API_KEY_ADMIN="your-admin-key" \
   -e AGENT_TOKEN="your-agent-token" \
   ghcr.io/antonlovesdnb/sysmonconfigpusher2:latest
 ```
+
+Access the UI at `https://localhost:5001` (self-signed certificate warning expected).
 
 See [Docker Guide](docs/DOCKER.md) for full configuration options.
 
