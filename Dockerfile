@@ -78,6 +78,12 @@ ENV ServerMode=AgentOnly
 ENV Authentication__Mode=ApiKey
 ENV ConnectionStrings__DefaultConnection="Data Source=/data/sysmon.db"
 
+# User-friendly environment variables (set these when running the container):
+# - API_KEY_ADMIN: API key for Admin role access
+# - API_KEY_OPERATOR: API key for Operator role access (optional)
+# - API_KEY_VIEWER: API key for Viewer role access (optional)
+# - AGENT_TOKEN: Registration token for agents to connect
+
 # Expose both HTTP and HTTPS ports
 EXPOSE 5000 5001
 

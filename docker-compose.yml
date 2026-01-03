@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: ghcr.io/antonlovesdnb/sysmonpusher2:latest
     container_name: sysmonpusher
     ports:
       - "5000:5000"
@@ -19,18 +20,14 @@ services:
       - ServerMode=AgentOnly
       # Use API key authentication
       - Authentication__Mode=ApiKey
-      # Configure API keys (override in production!)
-      - Authentication__ApiKeys__0__Key=${API_KEY_ADMIN:-changeme-admin-key}
-      - Authentication__ApiKeys__0__Name=Admin
-      - Authentication__ApiKeys__0__Role=Admin
-      - Authentication__ApiKeys__1__Key=${API_KEY_OPERATOR:-changeme-operator-key}
-      - Authentication__ApiKeys__1__Name=Operator
-      - Authentication__ApiKeys__1__Role=Operator
-      - Authentication__ApiKeys__2__Key=${API_KEY_VIEWER:-changeme-viewer-key}
-      - Authentication__ApiKeys__2__Name=Viewer
-      - Authentication__ApiKeys__2__Role=Viewer
-      # Agent registration token (override in production!)
-      - Agent__RegistrationToken=${AGENT_TOKEN:-changeme-agent-token}
+      # User-friendly API key configuration
+      # Set these environment variables before running docker-compose:
+      #   export API_KEY_ADMIN="your-secure-admin-key"
+      #   export AGENT_TOKEN="your-secure-agent-token"
+      - API_KEY_ADMIN=${API_KEY_ADMIN:-changeme-admin-key}
+      - API_KEY_OPERATOR=${API_KEY_OPERATOR:-}
+      - API_KEY_VIEWER=${API_KEY_VIEWER:-}
+      - AGENT_TOKEN=${AGENT_TOKEN:-changeme-agent-token}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health/live"]

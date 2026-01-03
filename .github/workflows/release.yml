@@ -217,10 +217,8 @@ jobs:
             docker run -d --name sysmonpusher \
               -p 5000:5000 \
               -v sysmonpusher-data:/data \
-              -e "Authentication__ApiKeys__0__Key=your-admin-key" \
-              -e "Authentication__ApiKeys__0__Name=Admin" \
-              -e "Authentication__ApiKeys__0__Role=Admin" \
-              -e "Agent__RegistrationToken=your-agent-token" \
+              -e API_KEY_ADMIN="your-admin-key" \
+              -e AGENT_TOKEN="your-agent-token" \
               ghcr.io/${{ github.repository }}:${{ needs.build-msi.outputs.version }}
             ```
 

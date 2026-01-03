@@ -75,6 +75,11 @@ try
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
+// Map friendly Docker environment variables to configuration
+// This allows users to use simple env vars like API_KEY_ADMIN instead of
+// Authentication__ApiKeys__0__Key
+ConfigureFromFriendlyEnvVars(builder.Configuration);
+
 // Configure as Windows Service
 builder.Host.UseWindowsService(options =>
 {
@@ -384,4 +389,61 @@ public class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 }
 
 // Partial class to make Program visible for integration tests
-public partial class Program { }
+public partial class Program
+{
+    /// <summary>
+    /// Maps friendly Docker environment variables to ASP.NET Core configuration.
+    /// This allows users to use simple env vars instead of the verbose nested syntax.
+    /// </summary>
+    /// <remarks>
+    /// Supported environment variables:
+    /// - API_KEY_ADMIN: API key for Admin role
+    /// - API_KEY_OPERATOR: API key for Operator role
+    /// - API_KEY_VIEWER: API key for Viewer role
+    /// - AGENT_TOKEN: Registration token for agents
+    /// </remarks>
+    private static void ConfigureFromFriendlyEnvVars(IConfigurationManager configuration)
+    {
+        var apiKeys = new List<Dictionary<string, string>>();
+        var keyIndex = 0;
+
+        // Check for friendly API key environment variables
+        var adminKey = Environment.GetEnvironmentVariable("API_KEY_ADMIN");
+        if (!string.IsNullOrEmpty(adminKey))
+        {
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Key"] = adminKey;
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Name"] = "Admin";
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Role"] = "Admin";
+            keyIndex++;
+            Log.Information("Configured Admin API key from API_KEY_ADMIN environment variable");
+        }
+
+        var operatorKey = Environment.GetEnvironmentVariable("API_KEY_OPERATOR");
+        if (!string.IsNullOrEmpty(operatorKey))
+        {
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Key"] = operatorKey;
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Name"] = "Operator";
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Role"] = "Operator";
+            keyIndex++;
+            Log.Information("Configured Operator API key from API_KEY_OPERATOR environment variable");
+        }
+
+        var viewerKey = Environment.GetEnvironmentVariable("API_KEY_VIEWER");
+        if (!string.IsNullOrEmpty(viewerKey))
+        {
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Key"] = viewerKey;
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Name"] = "Viewer";
+            configuration[$"Authentication:ApiKeys:{keyIndex}:Role"] = "Viewer";
+            keyIndex++;
+            Log.Information("Configured Viewer API key from API_KEY_VIEWER environment variable");
+        }
+
+        // Check for friendly agent token environment variable
+        var agentToken = Environment.GetEnvironmentVariable("AGENT_TOKEN");
+        if (!string.IsNullOrEmpty(agentToken))
+        {
+            configuration["Agent:RegistrationToken"] = agentToken;
+            Log.Information("Configured agent registration token from AGENT_TOKEN environment variable");
+        }
+    }
+}

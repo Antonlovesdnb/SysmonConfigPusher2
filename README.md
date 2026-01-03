@@ -43,11 +43,9 @@
 docker run -d --name sysmonpusher \
   -p 5000:5000 \
   -v sysmonpusher-data:/data \
-  -e "Authentication__ApiKeys__0__Key=your-admin-key" \
-  -e "Authentication__ApiKeys__0__Name=Admin" \
-  -e "Authentication__ApiKeys__0__Role=Admin" \
-  -e "Agent__RegistrationToken=your-agent-token" \
-  ghcr.io/antonlovesdnb/sysmonpusher:latest
+  -e API_KEY_ADMIN="your-admin-key" \
+  -e AGENT_TOKEN="your-agent-token" \
+  ghcr.io/antonlovesdnb/sysmonpusher2:latest
 ```
 
 See [Docker Guide](docs/DOCKER.md) for full configuration options.

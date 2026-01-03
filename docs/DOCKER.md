@@ -47,27 +47,43 @@ docker run -d \
   --name sysmonpusher \
   -p 5000:5000 \
   -v sysmonpusher-data:/data \
-  -e Authentication__Mode=ApiKey \
-  -e "Authentication__ApiKeys__0__Key=your-admin-key" \
-  -e "Authentication__ApiKeys__0__Name=Admin" \
-  -e "Authentication__ApiKeys__0__Role=Admin" \
-  -e "Agent__RegistrationToken=your-agent-token" \
-  sysmonpusher:latest
+  -e API_KEY_ADMIN="your-admin-key" \
+  -e AGENT_TOKEN="your-agent-token" \
+  ghcr.io/antonlovesdnb/sysmonpusher2:latest
+```
+
+For multiple roles:
+```bash
+docker run -d \
+  --name sysmonpusher \
+  -p 5000:5000 \
+  -v sysmonpusher-data:/data \
+  -e API_KEY_ADMIN="admin-secret-key" \
+  -e API_KEY_OPERATOR="operator-secret-key" \
+  -e API_KEY_VIEWER="viewer-secret-key" \
+  -e AGENT_TOKEN="agent-registration-token" \
+  ghcr.io/antonlovesdnb/sysmonpusher2:latest
 ```
 
 ## Configuration
 
 ### Environment Variables
 
+**User-Friendly Variables (Recommended):**
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `API_KEY_ADMIN` | API key for Admin role | Yes (at least one key) |
+| `API_KEY_OPERATOR` | API key for Operator role | No |
+| `API_KEY_VIEWER` | API key for Viewer role | No |
+| `AGENT_TOKEN` | Registration token for agents | Yes (if using agents) |
+
+**Advanced Variables:**
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ServerMode` | Server operation mode | `AgentOnly` |
-| `Authentication__Mode` | Authentication mode (`ApiKey`, `Windows`) | `ApiKey` |
-| `Authentication__ApiKeyHeader` | Header name for API key | `X-Api-Key` |
-| `Authentication__ApiKeys__N__Key` | API key value (N = 0, 1, 2...) | - |
-| `Authentication__ApiKeys__N__Name` | Display name for API key | - |
-| `Authentication__ApiKeys__N__Role` | Role: `Admin`, `Operator`, or `Viewer` | - |
-| `Agent__RegistrationToken` | Token for agent registration | - |
+| `Authentication__Mode` | Authentication mode | `ApiKey` |
 | `Agent__PollIntervalSeconds` | Agent polling interval | `30` |
 
 ### API Key Roles
