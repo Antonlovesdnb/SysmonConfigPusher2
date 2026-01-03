@@ -13,9 +13,11 @@ COPY src/SysmonConfigPusher.Data/*.csproj ./src/SysmonConfigPusher.Data/
 COPY src/SysmonConfigPusher.Infrastructure/*.csproj ./src/SysmonConfigPusher.Infrastructure/
 COPY src/SysmonConfigPusher.Service/*.csproj ./src/SysmonConfigPusher.Service/
 COPY src/SysmonConfigPusher.Shared/*.csproj ./src/SysmonConfigPusher.Shared/
+COPY src/SysmonConfigPusher.Agent/*.csproj ./src/SysmonConfigPusher.Agent/
+COPY tests/SysmonConfigPusher.Service.Tests/*.csproj ./tests/SysmonConfigPusher.Service.Tests/
 
-# Restore dependencies
-RUN dotnet restore
+# Restore only the service project (skips Windows-only agent)
+RUN dotnet restore src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj
 
 # Copy everything else and build
 COPY . .
