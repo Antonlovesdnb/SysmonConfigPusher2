@@ -6,17 +6,14 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and project files for restore
-COPY *.sln .
+# Copy project files for restore (service and its dependencies only)
 COPY src/SysmonConfigPusher.Core/*.csproj ./src/SysmonConfigPusher.Core/
 COPY src/SysmonConfigPusher.Data/*.csproj ./src/SysmonConfigPusher.Data/
 COPY src/SysmonConfigPusher.Infrastructure/*.csproj ./src/SysmonConfigPusher.Infrastructure/
 COPY src/SysmonConfigPusher.Service/*.csproj ./src/SysmonConfigPusher.Service/
 COPY src/SysmonConfigPusher.Shared/*.csproj ./src/SysmonConfigPusher.Shared/
-COPY src/SysmonConfigPusher.Agent/*.csproj ./src/SysmonConfigPusher.Agent/
-COPY tests/SysmonConfigPusher.Service.Tests/*.csproj ./tests/SysmonConfigPusher.Service.Tests/
 
-# Restore only the service project (skips Windows-only agent)
+# Restore the service project and its dependencies
 RUN dotnet restore src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj
 
 # Copy everything else and build
