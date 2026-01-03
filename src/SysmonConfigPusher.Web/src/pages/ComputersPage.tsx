@@ -5,12 +5,14 @@ import type { Computer } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useUserPreferences } from '../context/UserPreferencesContext';
+import { useCapabilities } from '../context/CapabilitiesContext';
 
 export function ComputersPage() {
   const navigate = useNavigate();
   const { canDeploy } = useAuth();
   const { showToast } = useToast();
   const { formatTimestamp } = useUserPreferences();
+  const { hasActiveDirectory } = useCapabilities();
   const [computers, setComputers] = useState<Computer[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -166,7 +168,7 @@ export function ComputersPage() {
             >
               Search
             </button>
-            {canDeploy && (
+            {canDeploy && hasActiveDirectory && (
               <button
                 onClick={refreshFromAD}
                 disabled={refreshing || scanning}
@@ -241,8 +243,9 @@ export function ComputersPage() {
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading...</div>
         ) : computers.length === 0 ? (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            No computers found. Click "Populate from AD" to enumerate computers from Active
-            Directory.
+            {hasActiveDirectory
+              ? 'No computers found. Click "Populate from AD" to enumerate computers from Active Directory.'
+              : 'No computers found. Computers will appear here when agents register with the server.'}
           </div>
         ) : (
           <div className="overflow-x-auto">

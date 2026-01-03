@@ -3,6 +3,7 @@ import { settingsApi, type BinaryCacheStatus, type TlsCertificateStatus } from '
 import type { AppSettings } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useUserPreferences } from '../context/UserPreferencesContext';
+import { useCapabilities } from '../context/CapabilitiesContext';
 
 type SettingsTab = 'display' | 'authorization' | 'deployment' | 'agent' | 'binary-cache' | 'tls';
 
@@ -73,6 +74,7 @@ const TAB_CONFIG: { id: SettingsTab; label: string; adminOnly: boolean; icon: Re
 export function SettingsPage() {
   const { isAdmin } = useAuth();
   const { timestampFormat, setTimestampFormat, formatTimestamp } = useUserPreferences();
+  const { isAgentOnlyMode, authMode } = useCapabilities();
   const [activeTab, setActiveTab] = useState<SettingsTab>('display');
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -290,78 +292,105 @@ export function SettingsPage() {
       case 'authorization':
         return (
           <div className="space-y-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Configure Active Directory security groups for role-based access control.
-            </p>
-            {settings && (
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Admin Group
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.authorization.adminGroup}
-                    onChange={(e) => updateAuthorization('adminGroup', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="SysmonPusher-Admins"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    AD group for full administrative access
+            {authMode === 'ApiKey' ? (
+              <>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Authorization is configured via API keys. Each API key has an assigned role.
+                </p>
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                  <h4 className="font-medium text-purple-800 dark:text-purple-300 mb-2">API Key Authentication Mode</h4>
+                  <p className="text-sm text-purple-700 dark:text-purple-400 mb-3">
+                    In API key mode, user roles are configured per API key via environment variables or docker-compose.yml.
+                  </p>
+                  <div className="bg-purple-100 dark:bg-purple-900/40 rounded p-3 font-mono text-xs text-purple-800 dark:text-purple-300">
+                    <div>Authentication__ApiKeys__0__Key=your-admin-key</div>
+                    <div>Authentication__ApiKeys__0__Name=Admin</div>
+                    <div>Authentication__ApiKeys__0__Role=Admin</div>
+                    <div className="mt-2">Authentication__ApiKeys__1__Key=your-viewer-key</div>
+                    <div>Authentication__ApiKeys__1__Name=ReadOnly</div>
+                    <div>Authentication__ApiKeys__1__Role=Viewer</div>
+                  </div>
+                  <p className="text-xs text-purple-600 dark:text-purple-500 mt-3">
+                    Available roles: Admin, Operator, Viewer
                   </p>
                 </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Configure Active Directory security groups for role-based access control.
+                </p>
+                {settings && (
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Admin Group
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.authorization.adminGroup}
+                        onChange={(e) => updateAuthorization('adminGroup', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        placeholder="SysmonPusher-Admins"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        AD group for full administrative access
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Operator Group
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.authorization.operatorGroup}
-                    onChange={(e) => updateAuthorization('operatorGroup', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="SysmonPusher-Operators"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    AD group for deployment and config management
-                  </p>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Operator Group
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.authorization.operatorGroup}
+                        onChange={(e) => updateAuthorization('operatorGroup', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        placeholder="SysmonPusher-Operators"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        AD group for deployment and config management
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Viewer Group
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.authorization.viewerGroup}
-                    onChange={(e) => updateAuthorization('viewerGroup', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    placeholder="SysmonPusher-Viewers"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    AD group for read-only access
-                  </p>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Viewer Group
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.authorization.viewerGroup}
+                        onChange={(e) => updateAuthorization('viewerGroup', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        placeholder="SysmonPusher-Viewers"
+                      />
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        AD group for read-only access
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Default Role
-                  </label>
-                  <select
-                    value={settings.authorization.defaultRole}
-                    onChange={(e) => updateAuthorization('defaultRole', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                  >
-                    <option value="Viewer">Viewer</option>
-                    <option value="Operator">Operator</option>
-                    <option value="Admin">Admin</option>
-                    <option value="None">None (Deny access)</option>
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Role assigned when user doesn't match any group
-                  </p>
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Default Role
+                      </label>
+                      <select
+                        value={settings.authorization.defaultRole}
+                        onChange={(e) => updateAuthorization('defaultRole', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      >
+                        <option value="Viewer">Viewer</option>
+                        <option value="Operator">Operator</option>
+                        <option value="Admin">Admin</option>
+                        <option value="None">None (Deny access)</option>
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Role assigned when user doesn't match any group
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -660,7 +689,9 @@ export function SettingsPage() {
         return (
           <div className="space-y-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              HTTPS certificate status. Configure certificates in appsettings.json.
+              HTTPS certificate status. {isAgentOnlyMode
+                ? 'For Docker deployments, mount a certificate volume or use a reverse proxy.'
+                : 'Configure certificates in appsettings.json.'}
             </p>
 
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
@@ -729,7 +760,7 @@ export function SettingsPage() {
                     </div>
                   )}
 
-                  {tlsStatus.isDevelopmentCertificate && (
+                  {tlsStatus.isDevelopmentCertificate && !isAgentOnlyMode && (
                     <p className="text-xs text-amber-600 dark:text-amber-500 mt-2">
                       Using ASP.NET Core development certificate. Configure a production certificate in appsettings.json for deployment.
                     </p>
@@ -739,6 +770,20 @@ export function SettingsPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Loading TLS status...</p>
               )}
             </div>
+
+            {isAgentOnlyMode && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Docker TLS Configuration</h4>
+                <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
+                  To use a production certificate with Docker:
+                </p>
+                <ol className="list-decimal list-inside text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                  <li>Mount your certificate as a volume to <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">/app/certs/</code></li>
+                  <li>Set environment variables for the certificate path and password</li>
+                  <li>Or use a reverse proxy (nginx, traefik) to handle TLS termination</li>
+                </ol>
+              </div>
+            )}
           </div>
         );
       default:
@@ -800,28 +845,30 @@ export function SettingsPage() {
                 {availableTabs.find((t) => t.id === activeTab)?.label}
               </h2>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setShowRestartConfirm(true)}
-                  disabled={restarting}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {restarting ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Restarting...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Restart Service
-                    </>
-                  )}
-                </button>
+                {!isAgentOnlyMode && (
+                  <button
+                    onClick={() => setShowRestartConfirm(true)}
+                    disabled={restarting}
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {restarting ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Restarting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Restart Service
+                      </>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -925,14 +972,29 @@ export function SettingsPage() {
                   />
                 </svg>
                 <div className="text-sm text-blue-700 dark:text-blue-300">
-                  <p className="font-medium">Settings are saved to appsettings.json</p>
-                  <p className="mt-1 text-blue-600 dark:text-blue-400">
-                    Most changes require a service restart to take effect. The service can be restarted
-                    from the Windows Services console or by running{' '}
-                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
-                      Restart-Service SysmonConfigPusher
-                    </code>
-                  </p>
+                  {isAgentOnlyMode ? (
+                    <>
+                      <p className="font-medium">Settings are configured via environment variables</p>
+                      <p className="mt-1 text-blue-600 dark:text-blue-400">
+                        Most settings in Docker deployments are configured via environment variables in
+                        docker-compose.yml. Restart the container to apply changes:{' '}
+                        <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                          docker-compose restart
+                        </code>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium">Settings are saved to appsettings.json</p>
+                      <p className="mt-1 text-blue-600 dark:text-blue-400">
+                        Most changes require a service restart to take effect. The service can be restarted
+                        from the Windows Services console or by running{' '}
+                        <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                          Restart-Service SysmonConfigPusher
+                        </code>
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
