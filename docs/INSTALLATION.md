@@ -59,7 +59,6 @@ The service auto-creates a self-signed certificate on first start. For productio
   "Kestrel": {
     "Endpoints": {
       "Https": {
-        "Url": "https://*:5001",
         "Certificate": {
           "Subject": "CN=sysmonpusher.yourdomain.com",
           "Store": "My",
@@ -84,7 +83,6 @@ The service auto-creates a self-signed certificate on first start. For productio
   "Kestrel": {
     "Endpoints": {
       "Https": {
-        "Url": "https://*:5001",
         "Certificate": {
           "Path": "C:\\ProgramData\\SysmonConfigPusher\\cert.pfx",
           "Password": "your-password"
@@ -170,16 +168,42 @@ https://your-server-name:5001
 
 Log in with your domain credentials.
 
-## Configuration Reference
+## Changing the Port
 
-Full `appsettings.Production.json` example:
+To change the listening port (e.g., to 443), edit **`appsettings.json`** (not `appsettings.Production.json`):
 
 ```json
 {
   "Kestrel": {
     "Endpoints": {
       "Https": {
-        "Url": "https://*:5001",
+        "Url": "https://*:443"
+      }
+    }
+  }
+}
+```
+
+Then restart the service:
+```powershell
+Restart-Service SysmonConfigPusher
+```
+
+> **Note:** The application uses two config files:
+> - `appsettings.json` - Edit this for **port** and general settings
+> - `appsettings.Production.json` - Edit this for **certificate** configuration only
+>
+> Settings in `appsettings.Production.json` override `appsettings.json`, so the port is intentionally only in the base file.
+
+## Configuration Reference
+
+Full `appsettings.Production.json` example (certificate config only):
+
+```json
+{
+  "Kestrel": {
+    "Endpoints": {
+      "Https": {
         "Certificate": {
           "Subject": "CN=sysmonpusher.yourdomain.com",
           "Store": "My",
