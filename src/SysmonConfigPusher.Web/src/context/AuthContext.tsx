@@ -33,8 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const modeInfo = await authApi.getAuthMode();
       setAuthMode(modeInfo.mode);
 
-      // If API key mode and no key stored, user needs to log in
-      if (modeInfo.requiresApiKey && !getStoredApiKey()) {
+      // If login required (API key mode) and no key stored, user needs to log in
+      if (modeInfo.requiresLogin && !getStoredApiKey()) {
         setNeedsApiKey(true);
         setUser(null);
         setError(null);

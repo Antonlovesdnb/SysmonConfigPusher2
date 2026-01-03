@@ -21,8 +21,7 @@ export interface ServerCapabilities {
 
 export interface AuthModeInfo {
   mode: AuthenticationMode;
-  requiresApiKey: boolean;
-  requiresCredentials: boolean;
+  requiresLogin: boolean;
 }
 
 export interface ApiKeyValidationResult {
