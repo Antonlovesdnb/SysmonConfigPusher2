@@ -41,7 +41,11 @@ public class CapabilitiesController : ControllerBase
     public ActionResult<ServerCapabilities> GetCapabilities()
     {
         var serverMode = _configuration["ServerMode"] ?? "Full";
-        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+        var configAuthMode = _configuration["Authentication:Mode"];
+        // Default to Windows auth on Windows, ApiKey otherwise
+        var authMode = string.IsNullOrEmpty(configAuthMode)
+            ? (OperatingSystem.IsWindows() ? "Windows" : "ApiKey")
+            : configAuthMode;
 
         var capabilities = new ServerCapabilities
         {

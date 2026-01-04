@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
     public ActionResult<UserInfoDto> GetCurrentUser()
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+        var authMode = GetAuthenticationMode();
 
         // Extract roles from claims
         var roles = User.Claims
@@ -76,7 +76,7 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult<AuthValidationResult> ValidateKey([FromBody] ValidateKeyRequest request)
     {
-        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+        var authMode = GetAuthenticationMode();
 
         if (!string.Equals(authMode, "ApiKey", StringComparison.OrdinalIgnoreCase))
         {
@@ -123,13 +123,27 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public ActionResult<AuthModeInfo> GetAuthMode()
     {
-        var authMode = _configuration["Authentication:Mode"] ?? "Windows";
+        var authMode = GetAuthenticationMode();
 
         return Ok(new AuthModeInfo
         {
             Mode = authMode,
             RequiresLogin = !string.Equals(authMode, "Windows", StringComparison.OrdinalIgnoreCase)
         });
+    }
+
+    /// <summary>
+    /// Gets the authentication mode, defaulting to Windows if not set or empty.
+    /// </summary>
+    private string GetAuthenticationMode()
+    {
+        var mode = _configuration["Authentication:Mode"];
+        // Default to Windows auth on Windows, ApiKey otherwise
+        if (string.IsNullOrEmpty(mode))
+        {
+            return OperatingSystem.IsWindows() ? "Windows" : "ApiKey";
+        }
+        return mode;
     }
 }
 
