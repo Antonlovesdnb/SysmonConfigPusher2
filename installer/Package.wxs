@@ -37,6 +37,7 @@
       <Files Include="$(PublishDir)\**">
         <Exclude Files="$(PublishDir)\**\*.pdb" />
         <Exclude Files="$(PublishDir)\SysmonConfigPusher.Service.exe" />
+        <Exclude Files="$(PublishDir)\appsettings*.json" />
       </Files>
     </ComponentGroup>
 
@@ -72,10 +73,10 @@
       <Custom Action="CreateCertificate" After="InstallFiles" Condition="NOT Installed" />
     </InstallExecuteSequence>
 
-    <!-- Production config template -->
+    <!-- Config file (single consolidated config) -->
     <ComponentGroup Id="ConfigFiles" Directory="INSTALLFOLDER">
-      <Component Id="ProductionConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567894" NeverOverwrite="yes">
-        <File Id="AppSettingsProduction" Source="appsettings.Production.json" Name="appsettings.Production.json" KeyPath="yes" />
+      <Component Id="AppSettingsConfig" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567894" NeverOverwrite="yes">
+        <File Id="AppSettings" Source="appsettings.json" Name="appsettings.json" KeyPath="yes" />
       </Component>
     </ComponentGroup>
 

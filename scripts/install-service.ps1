@@ -124,10 +124,9 @@ Write-Host ""
 Write-Host "Service installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
-Write-Host "  1. Copy appsettings.Production.json to the application directory"
-Write-Host "  2. Configure TLS certificate in appsettings.Production.json"
-Write-Host "  3. Configure AD groups for authorization"
-Write-Host "  4. Start the service: Start-Service $ServiceName"
+Write-Host "  1. Configure TLS certificate in appsettings.json"
+Write-Host "  2. Configure AD groups for authorization"
+Write-Host "  3. Start the service: Start-Service $ServiceName"
 Write-Host ""
 Write-Host "Useful commands:" -ForegroundColor Cyan
 Write-Host "  Start-Service $ServiceName"

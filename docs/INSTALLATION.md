@@ -52,13 +52,14 @@ The service auto-creates a self-signed certificate on first start. For productio
 #### Option A: Windows Certificate Store (Recommended)
 
 1. Import your certificate to the Local Machine store
-2. Edit `appsettings.Production.json`:
+2. Edit `appsettings.json`:
 
 ```json
 {
   "Kestrel": {
     "Endpoints": {
       "Https": {
+        "Url": "https://0.0.0.0:5001",
         "Certificate": {
           "Subject": "CN=sysmonpusher.yourdomain.com",
           "Store": "My",
@@ -83,6 +84,7 @@ The service auto-creates a self-signed certificate on first start. For productio
   "Kestrel": {
     "Endpoints": {
       "Https": {
+        "Url": "https://0.0.0.0:5001",
         "Certificate": {
           "Path": "C:\\ProgramData\\SysmonConfigPusher\\cert.pfx",
           "Password": "your-password"
@@ -103,7 +105,7 @@ Create Active Directory groups for role-based access:
 | SysmonPusher-Operators | Operator | Deploy, analyze, view |
 | SysmonPusher-Viewers | Viewer | Read-only |
 
-Edit `appsettings.Production.json`:
+Edit `appsettings.json`:
 
 ```json
 {
@@ -140,7 +142,7 @@ Start-Service SysmonConfigPusher
 **Or via Services GUI:**
 1. Open `services.msc`
 2. Find **Sysmon Config Pusher**
-3. Right-click → Properties → **Log On** tab
+3. Right-click > Properties > **Log On** tab
 4. Select "This account" and enter domain credentials
 5. Restart the service
 
@@ -170,14 +172,20 @@ Log in with your domain credentials.
 
 ## Changing the Port
 
-To change the listening port (e.g., to 443), edit **`appsettings.json`** (not `appsettings.Production.json`):
+To change the listening port (e.g., to 443), edit `appsettings.json`:
 
 ```json
 {
   "Kestrel": {
     "Endpoints": {
       "Https": {
-        "Url": "https://*:443"
+        "Url": "https://0.0.0.0:443",
+        "Certificate": {
+          "Subject": "SysmonConfigPusher",
+          "Store": "My",
+          "Location": "LocalMachine",
+          "AllowInvalid": true
+        }
       }
     }
   }
@@ -189,21 +197,27 @@ Then restart the service:
 Restart-Service SysmonConfigPusher
 ```
 
-> **Note:** The application uses two config files:
-> - `appsettings.json` - Edit this for **port** and general settings
-> - `appsettings.Production.json` - Edit this for **certificate** configuration only
->
-> Settings in `appsettings.Production.json` override `appsettings.json`, so the port is intentionally only in the base file.
-
 ## Configuration Reference
 
-Full `appsettings.Production.json` example (certificate config only):
+All settings are in a single `appsettings.json` file located at `C:\Program Files\SysmonConfigPusher\appsettings.json`.
+
+Full example:
 
 ```json
 {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+
   "Kestrel": {
     "Endpoints": {
       "Https": {
+        "Url": "https://0.0.0.0:5001",
         "Certificate": {
           "Subject": "CN=sysmonpusher.yourdomain.com",
           "Store": "My",
@@ -212,18 +226,31 @@ Full `appsettings.Production.json` example (certificate config only):
       }
     }
   },
+
+  "Authentication": {
+    "Mode": "",
+    "ApiKeyHeader": "X-Api-Key",
+    "ApiKeys": []
+  },
+
   "SysmonConfigPusher": {
     "SysmonBinaryUrl": "https://live.sysinternals.com/Sysmon.exe",
     "DefaultParallelism": 50,
     "RemoteDirectory": "C:\\SysmonFiles",
-    "AuditLogPath": "C:\\ProgramData\\SysmonConfigPusher\\audit.json",
-    "LogDirectory": "C:\\ProgramData\\SysmonConfigPusher\\logs"
+    "AuditLogPath": "",
+    "LogDirectory": ""
   },
+
   "Authorization": {
     "AdminGroup": "SysmonPusher-Admins",
     "OperatorGroup": "SysmonPusher-Operators",
     "ViewerGroup": "SysmonPusher-Viewers",
     "DefaultRole": "None"
+  },
+
+  "Agent": {
+    "RegistrationToken": "",
+    "PollIntervalSeconds": 30
   }
 }
 ```
@@ -232,6 +259,7 @@ Full `appsettings.Production.json` example (certificate config only):
 
 | Setting | Description | Default |
 |---------|-------------|---------|
+| `Authentication:Mode` | Auth mode: empty for Windows, "ApiKey" for API keys | (empty = Windows) |
 | `SysmonBinaryUrl` | URL to download Sysmon binary | live.sysinternals.com |
 | `DefaultParallelism` | Concurrent deployment operations (1-500) | 50 |
 | `RemoteDirectory` | Directory on targets for Sysmon files | C:\SysmonFiles |
@@ -243,6 +271,7 @@ Full `appsettings.Production.json` example (certificate config only):
 | Path | Contents |
 |------|----------|
 | `C:\Program Files\SysmonConfigPusher\` | Application files |
+| `C:\Program Files\SysmonConfigPusher\appsettings.json` | Configuration file |
 | `C:\ProgramData\SysmonConfigPusher\sysmon.db` | SQLite database |
 | `C:\ProgramData\SysmonConfigPusher\logs\` | Application logs |
 | `C:\ProgramData\SysmonConfigPusher\BinaryCache\` | Cached Sysmon binaries |
@@ -322,8 +351,8 @@ The application uses Windows Integrated Authentication (Kerberos/NTLM). If your 
 
 Kerberos authentication requires using the server hostname:
 ```
-https://servername:5001     ✓ Correct
-https://192.168.1.50:5001   ✗ Won't auto-authenticate
+https://servername:5001     Correct
+https://192.168.1.50:5001   Won't auto-authenticate
 ```
 
 **2. Add site to Local Intranet zone**
@@ -339,7 +368,7 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet
 
 *Via Internet Options:*
 1. Open **Internet Options** (search in Start menu)
-2. Go to **Security** tab → **Local Intranet** → **Sites** → **Advanced**
+2. Go to **Security** tab > **Local Intranet** > **Sites** > **Advanced**
 3. Add: `https://your-server-name:5001`
 4. Click Add, Close, OK
 
@@ -359,7 +388,7 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Google\Chrome" -Name "AuthServer
 
 The installer creates a self-signed certificate automatically. To suppress browser warnings:
 
-1. When prompted, click **Advanced** → **Proceed to site**
+1. When prompted, click **Advanced** > **Proceed to site**
 2. Or import the certificate to Trusted Root:
    ```powershell
    # On the client machine, run as Admin

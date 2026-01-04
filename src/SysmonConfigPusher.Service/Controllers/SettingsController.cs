@@ -37,8 +37,8 @@ public class SettingsController : ControllerBase
 
     private string GetAppSettingsPath()
     {
-        // In Production, write to appsettings.Production.json since it overrides appsettings.json
-        // In other environments, write to appsettings.json
+        // Always write to appsettings.json (the single consolidated config file)
+        // Falls back gracefully if environment-specific file exists for dev scenarios
         var environmentName = _env.EnvironmentName;
         var envSpecificFile = Path.Combine(_env.ContentRootPath, $"appsettings.{environmentName}.json");
 

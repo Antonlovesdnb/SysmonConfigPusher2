@@ -53,4 +53,4 @@ Write-Host "  Subject: $($cert.Subject)"
 Write-Host "  Thumbprint: $($cert.Thumbprint)"
 Write-Host "  Expires: $($cert.NotAfter)"
 Write-Host ""
-Write-Host "The certificate is configured in appsettings.Production.json" -ForegroundColor Cyan
+Write-Host "The certificate is configured in appsettings.json" -ForegroundColor Cyan
