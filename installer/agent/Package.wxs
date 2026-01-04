@@ -7,9 +7,14 @@
            Manufacturer="SysmonConfigPusher"
            Version="2.1.0.0"
            UpgradeCode="F9A8B7C6-1D2E-3F4A-5B6C-7D8E9F0A1B2C"
-           Scope="perMachine">
+           Scope="perMachine"
+           InstallerVersion="500">
 
     <SummaryInformation Description="SysmonConfigPusher Agent - Lightweight agent for managing Sysmon on cloud-hosted Windows machines" />
+
+    <!-- Icon for Add/Remove Programs -->
+    <Icon Id="ProductIcon" SourceFile="sysmonpusher.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />

@@ -6,7 +6,12 @@
            Manufacturer="SysmonConfigPusher"
            Version="2.0.0.0"
            UpgradeCode="E8F7A9B1-2C3D-4E5F-6A7B-8C9D0E1F2A3B"
-           Scope="perMachine">
+           Scope="perMachine"
+           InstallerVersion="500">
+
+    <!-- Icon for Add/Remove Programs -->
+    <Icon Id="ProductIcon" SourceFile="sysmonpusher.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />

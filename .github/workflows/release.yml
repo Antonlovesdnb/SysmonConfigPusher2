@@ -62,12 +62,13 @@ jobs:
         run: dotnet test --configuration Release --verbosity normal
 
       # Publish Service (to location expected by WiX installer)
+      # Single-file publish bundles all DLLs into the main EXE for cleaner install
       - name: Publish Service
-        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.version.outputs.VERSION }}
+        run: dotnet publish src/SysmonConfigPusher.Service/SysmonConfigPusher.Service.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ steps.version.outputs.VERSION }}
 
       # Publish Agent (to location expected by WiX installer)
       - name: Publish Agent
-        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true -p:Version=${{ steps.version.outputs.VERSION }}
+        run: dotnet publish src/SysmonConfigPusher.Agent/SysmonConfigPusher.Agent.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:Version=${{ steps.version.outputs.VERSION }}
 
       # Build MSI installers
       - name: Build Service MSI
