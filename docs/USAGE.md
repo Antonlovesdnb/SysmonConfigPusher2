@@ -31,6 +31,10 @@ This guide covers how to use SysmonConfigPusher to manage Sysmon across your Win
 | Operator | ✅ | ✅ | ✅ | ❌ |
 | Admin | ✅ | ✅ | ✅ | ✅ |
 
+Role permissions are also visible in the `Authorization Settings` section:
+
+![auth settings](img/image.png)
+
 ---
 
 ## Dashboard
