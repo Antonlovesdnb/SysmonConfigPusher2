@@ -46,6 +46,8 @@ The dashboard provides an overview of your Sysmon deployment status:
 - **Deployments** - Recent deployment activity and success rate
 - **Sysmon Versions** - Distribution of Sysmon versions across endpoints
 
+![](img/20260104100655.png)
+
 ---
 
 ## Inventory Management
@@ -193,6 +195,8 @@ This helps distinguish modified configs from the original source.
 2. Click **Compare Selected**
 3. View a side-by-side diff of the configs
 
+![](img/20260104101014.png)
+
 ---
 
 ## Deployments
@@ -238,6 +242,14 @@ For **Update Config**:
 2. Select date and time
 3. The deployment will execute automatically at the scheduled time
 
+![](img/20260104101117.png)
+
+![](img/20260104101225.png)
+
+![](img/20260104101343.png)
+
+![](img/20260104101448.png)
+
 ---
 
 ## Event Viewer
@@ -276,6 +288,8 @@ Click on any event row to expand and view:
 - Parent process information
 - Network details (for connection events)
 - Raw XML
+
+![](img/20260104101626.png)
 
 ---
 
@@ -326,6 +340,16 @@ Example generated exclusion:
   <Image condition="is">C:\Windows\System32\svchost.exe</Image>
 </ProcessCreate>
 ```
+
+![](img/20260104101755.png)
+
+![](img/20260104101838.png)
+
+![](img/20260104101949.png)
+
+![](img/20260104102023.png)
+
+![](img/20260104102234.png)
 
 ---
 
