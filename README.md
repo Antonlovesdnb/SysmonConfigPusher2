@@ -110,23 +110,23 @@ See [Deployment Modes](docs/DEPLOYMENT_MODES.md) for a detailed comparison.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          Web Browser                                 │
-│              (Windows Auth or API Key Authentication)                │
+│                          Web Browser                                │
+│              (Windows Auth or API Key Authentication)               │
 └─────────────────────────────┬───────────────────────────────────────┘
                               │ HTTPS
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    SysmonConfigPusher Server                         │
-│                (Windows Service or Docker Container)                 │
-│                                                                      │
+│                    SysmonConfigPusher Server                        │
+│                (Windows Service or Docker Container)                │
+│                                                                     │
 │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────────┐  │
 │  │  REST API   │  │ SignalR Hub  │  │  Background Workers        │  │
 │  │  (Configs,  │  │ (Real-time   │  │  (Deployments, Scans,      │  │
 │  │  Deploy)    │  │  Progress)   │  │   Scheduled Jobs)          │  │
 │  └─────────────┘  └──────────────┘  └────────────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                    SQLite Database                              │ │
-│  │    (Configs, Inventory, Deployments, Audit Log)                 │ │
+│  │                    SQLite Database                             │ │
+│  │    (Configs, Inventory, Deployments, Audit Log)                │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 └───────────────────┬─────────────────────────────┬───────────────────┘
                     │                             │
