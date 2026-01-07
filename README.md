@@ -29,37 +29,42 @@
 | **Scheduled Deployments** | Schedule deployments for future execution |
 | **Flexible Auth** | Windows Integrated Auth or API keys |
 
-**Dashboard**
+<details>
+<summary><b>Dashboard</b> (click to expand)</summary>
+<img src="img/20260107084348.png">
+</details>
 
-<img src="img/20260107084348.png" width="100%">
+<details>
+<summary><b>Inventory</b> (click to expand)</summary>
+<img src="img/20260107084253.png">
+</details>
 
-**Inventory**
+<details>
+<summary><b>Config View</b> (click to expand)</summary>
+<img src="img/20260107084444.png">
+</details>
 
-<img src="img/20260107084253.png" width="100%">
+<details>
+<summary><b>Built in Config Viewer/Editor</b> (click to expand)</summary>
+<img src="img/20260107084513.png">
+</details>
 
-**Config View**
+<details>
+<summary><b>Deployment Wizard</b> (click to expand)</summary>
+<img src="img/20260107084550.png">
+<img src="img/20260107084611.png">
+</details>
 
-<img src="img/20260107084444.png" width="100%">
+<details>
+<summary><b>Queue & Schedule Deployments</b> (click to expand)</summary>
+<img src="img/20260107084757.png">
+</details>
 
-**Built in Config Viewer/Editor**
-
-<img src="img/20260107084513.png" width="100%">
-
-**Deployment Wizard**
-
-<img src="img/20260107084550.png" width="100%">
-
-<img src="img/20260107084611.png" width="100%">
-
-**Queue & Schedule Deployments**
-
-<img src="img/20260107084757.png" width="100%">
-
-**Sysmon Event Noise Analysis**
-
-<img src="img/20260107084640.png" width="100%">
-
-<img src="img/20260107084653.png" width="100%">
+<details>
+<summary><b>Sysmon Event Noise Analysis</b> (click to expand)</summary>
+<img src="img/20260107084640.png">
+<img src="img/20260107084653.png">
+</details>
 
 
 
