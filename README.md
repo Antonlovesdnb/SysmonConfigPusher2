@@ -6,11 +6,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Antonlovesdnb/SysmonConfigPusher2/ci.yml?style=flat-square&label=CI" alt="CI"></a>
-  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/releases/latest"><img src="https://img.shields.io/github/v/release/Antonlovesdnb/SysmonConfigPusher2?style=flat-square&label=version" alt="Version"></a>
-  <img src="https://img.shields.io/badge/.NET-8.0-purple?style=flat-square" alt=".NET 8">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Docker-blue?style=flat-square" alt="Windows | Docker">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Antonlovesdnb/SysmonConfigPusher2?style=flat-square" alt="License"></a>
+  <a href="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml"><img src="https://github.com/Antonlovesdnb/SysmonConfigPusher2/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/.NET-8.0-purple" alt=".NET 8">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Docker-blue" alt="Windows | Docker">
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
 ---
