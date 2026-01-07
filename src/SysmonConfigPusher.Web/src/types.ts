@@ -151,7 +151,7 @@ export const DEPLOYMENT_OPERATIONS: { value: DeploymentOperation; label: string;
   { value: 'install', label: 'Install Sysmon', description: 'Install Sysmon with optional config', requiresConfig: false, showConfigStep: true },
   { value: 'update', label: 'Update Config', description: 'Push new configuration to existing Sysmon', requiresConfig: true, showConfigStep: true },
   { value: 'uninstall', label: 'Uninstall Sysmon', description: 'Remove Sysmon from target hosts', requiresConfig: false, showConfigStep: false },
-  { value: 'test', label: 'Test Connectivity', description: 'Test WMI connectivity to hosts', requiresConfig: false, showConfigStep: false },
+  { value: 'test', label: 'Test Connectivity', description: 'Test connectivity to hosts', requiresConfig: false, showConfigStep: false },
 ];
 
 // Sysmon Event Types
