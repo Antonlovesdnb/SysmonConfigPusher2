@@ -31,35 +31,35 @@
 
 **Dashboard**
 
-![](img/20260107084348.png)
+<img src="img/20260107084348.png" width="100%">
 
 **Inventory**
 
-![](img/20260107084253.png)
+<img src="img/20260107084253.png" width="100%">
 
 **Config View**
 
-![](img/20260107084444.png)
+<img src="img/20260107084444.png" width="100%">
 
 **Built in Config Viewer/Editor**
 
-![](img/20260107084513.png)
+<img src="img/20260107084513.png" width="100%">
 
 **Deployment Wizard**
 
-![](img/20260107084550.png)
+<img src="img/20260107084550.png" width="100%">
 
-![](img/20260107084611.png)
+<img src="img/20260107084611.png" width="100%">
 
 **Queue & Schedule Deployments**
 
-![](img/20260107084757.png)
+<img src="img/20260107084757.png" width="100%">
 
 **Sysmon Event Noise Analysis**
 
-![](img/20260107084640.png)
+<img src="img/20260107084640.png" width="100%">
 
-![](img/20260107084653.png)
+<img src="img/20260107084653.png" width="100%">
 
 
 
