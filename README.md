@@ -35,7 +35,7 @@
 1. Download the latest [SysmonConfigPusher.msi](https://github.com/Antonlovesdnb/SysmonConfigPusher2/releases/latest)
 2. Run the installer as Administrator
 3. Configure a domain service account ([see docs](docs/INSTALLATION.md#step-4-configure-service-account))
-4. Start the service and access `https://servername:5001`
+4. Start the service and access the web UI (default port: 5001, configurable in `appsettings.json`)
 
 ### Option 2: Docker (Agent-Only Mode)
 

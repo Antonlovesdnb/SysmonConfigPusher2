@@ -285,8 +285,8 @@ Get-Content "C:\ProgramData\SysmonConfigPusherAgent\logs\*.log" -Tail 50
 
 **On agent machine:**
 ```powershell
-# Check if Sysmon is accessible
-& "C:\Windows\Sysmon64.exe" -c
+# Check if Sysmon is accessible (use Sysmon.exe or Sysmon64.exe depending on your installation)
+& "C:\Windows\Sysmon64.exe" -c   # or Sysmon.exe
 ```
 
 ### Certificate Errors

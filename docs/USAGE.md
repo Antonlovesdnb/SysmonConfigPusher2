@@ -19,7 +19,7 @@ This guide covers how to use SysmonConfigPusher to manage Sysmon across your Win
 
 ### First Login
 
-1. Open your browser and navigate to `https://your-server:5001`
+1. Open your browser and navigate to your server URL (default: `https://your-server:5001`, port is configurable in `appsettings.json`)
 2. You'll be automatically authenticated via Windows Integrated Auth
 3. Your role (Admin, Operator, or Viewer) is determined by AD group membership
 
@@ -221,14 +221,16 @@ This helps distinguish modified configs from the original source.
 ### Deployment Process
 
 For **Install Sysmon**:
-1. Creates remote directory (`C:\SysmonFiles` by default)
-2. Copies Sysmon binary via SMB
+1. Creates remote directory (configurable, default: `C:\SysmonFiles`)
+2. Copies Sysmon binary via SMB (filename determined by configured `SysmonBinaryUrl`)
 3. Copies config file via SMB
-4. Executes `Sysmon64.exe -accepteula -i config.xml` via WMI
+4. Executes `Sysmon -accepteula -i config.xml` via WMI
 
 For **Update Config**:
 1. Copies new config via SMB
-2. Executes `Sysmon64.exe -c config.xml` via WMI
+2. Executes `Sysmon -c config.xml` via WMI
+
+> **Note:** The Sysmon binary name (e.g., `Sysmon.exe` or `Sysmon64.exe`) is determined by the `SysmonBinaryUrl` setting in `appsettings.json`.
 
 ### Viewing Deployment Results
 

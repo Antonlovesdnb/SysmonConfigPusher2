@@ -211,12 +211,12 @@ jobs:
             1. Download and run `SysmonConfigPusher-${{ needs.build-msi.outputs.version }}.msi` on your management server
             2. Configure the service with appropriate credentials
             3. Start the service: `Start-Service SysmonConfigPusher`
-            4. Access the web UI at `https://servername:5001`
+            4. Access the web UI (default port: 5001, configurable in `appsettings.json`)
 
             ### Option 2: Docker (Agent-Only Mode)
             ```bash
             docker run -d --name sysmonpusher \
-              -p 5000:5000 \
+              -p 5001:5001 \
               -v sysmonpusher-data:/data \
               -e API_KEY_ADMIN="your-admin-key" \
               -e AGENT_TOKEN="your-agent-token" \
@@ -225,7 +225,7 @@ jobs:
 
             ### Agent Installation (for cloud endpoints)
             ```powershell
-            msiexec /i SysmonConfigPusherAgent-${{ needs.build-msi.outputs.version }}.msi SERVER_URL=https://your-server:5001 REGISTRATION_TOKEN=your-token /qn
+            msiexec /i SysmonConfigPusherAgent-${{ needs.build-msi.outputs.version }}.msi SERVER_URL=https://your-server:PORT REGISTRATION_TOKEN=your-token /qn
             ```
 
             ## What's Changed

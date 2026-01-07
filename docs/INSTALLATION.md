@@ -259,8 +259,9 @@ Full example:
 
 | Setting | Description | Default |
 |---------|-------------|---------|
+| `Kestrel:Endpoints:Https:Url` | HTTPS listening URL and port | https://0.0.0.0:5001 |
 | `Authentication:Mode` | Auth mode: empty for Windows, "ApiKey" for API keys | (empty = Windows) |
-| `SysmonBinaryUrl` | URL to download Sysmon binary | live.sysinternals.com |
+| `SysmonBinaryUrl` | URL to download Sysmon binary. The filename (Sysmon.exe or Sysmon64.exe) is extracted from this URL. | https://live.sysinternals.com/Sysmon.exe |
 | `DefaultParallelism` | Concurrent deployment operations (1-500) | 50 |
 | `RemoteDirectory` | Directory on targets for Sysmon files | C:\SysmonFiles |
 | `AuditLogPath` | JSON audit log file (empty to disable) | (empty) |
