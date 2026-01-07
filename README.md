@@ -153,6 +153,10 @@ See [Deployment Modes](docs/DEPLOYMENT_MODES.md) for a detailed comparison.
 | **Deployment** | Windows Service, Docker, MSI Installer (WiX) |
 | **Agent** | .NET 8 self-contained Windows Service |
 
+## Lab Environment
+
+Want to try this out in a lab environment? Check out the [Constructing Defense Lab](https://github.com/Antonlovesdnb/ConstructingDefenseLab)!
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
