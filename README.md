@@ -29,6 +29,41 @@
 | **Scheduled Deployments** | Schedule deployments for future execution |
 | **Flexible Auth** | Windows Integrated Auth or API keys |
 
+**Dashboard**
+
+![](img/20260107084348.png)
+
+**Inventory**
+
+![](img/20260107084253.png)
+
+**Config View**
+
+![](img/20260107084444.png)
+
+**Built in Config Viewer/Editor**
+
+![](img/20260107084513.png)
+
+**Deployment Wizard**
+
+![](img/20260107084550.png)
+
+![](img/20260107084611.png)
+
+**Queue & Schedule Deployments**
+
+![](img/20260107084757.png)
+
+**Sysmon Event Noise Analysis**
+
+![](img/20260107084640.png)
+
+![](img/20260107084653.png)
+
+
+
+
 ## Quick Start
 
 ### Option 1: MSI Installer (Windows Server)
