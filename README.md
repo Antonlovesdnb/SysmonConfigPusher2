@@ -29,42 +29,23 @@
 | **Scheduled Deployments** | Schedule deployments for future execution |
 | **Flexible Auth** | Windows Integrated Auth or API keys |
 
-<details>
-<summary><b>Dashboard</b> (click to expand)</summary>
-<img src="img/20260107084348.png">
-</details>
+### Screenshots
 
-<details>
-<summary><b>Inventory</b> (click to expand)</summary>
-<img src="img/20260107084253.png">
-</details>
+| Dashboard | Inventory |
+|-----------|-----------|
+| ![Dashboard](img/20260107084348.png) | ![Inventory](img/20260107084253.png) |
 
-<details>
-<summary><b>Config View</b> (click to expand)</summary>
-<img src="img/20260107084444.png">
-</details>
+| Config View | Config Editor |
+|-------------|---------------|
+| ![Config View](img/20260107084444.png) | ![Config Editor](img/20260107084513.png) |
 
-<details>
-<summary><b>Built in Config Viewer/Editor</b> (click to expand)</summary>
-<img src="img/20260107084513.png">
-</details>
+| Deployment Wizard | Deployment Progress |
+|-------------------|---------------------|
+| ![Deployment Wizard](img/20260107084550.png) | ![Deployment Progress](img/20260107084611.png) |
 
-<details>
-<summary><b>Deployment Wizard</b> (click to expand)</summary>
-<img src="img/20260107084550.png">
-<img src="img/20260107084611.png">
-</details>
-
-<details>
-<summary><b>Queue & Schedule Deployments</b> (click to expand)</summary>
-<img src="img/20260107084757.png">
-</details>
-
-<details>
-<summary><b>Sysmon Event Noise Analysis</b> (click to expand)</summary>
-<img src="img/20260107084640.png">
-<img src="img/20260107084653.png">
-</details>
+| Schedule Deployments | Noise Analysis |
+|----------------------|----------------|
+| ![Schedule](img/20260107084757.png) | ![Noise Analysis](img/20260107084640.png) |
 
 
 
